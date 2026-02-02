@@ -1,5 +1,52 @@
 # ForgeMesh Architecture Specification
 
+## System Overview
+
+```mermaid
+flowchart TB
+    subgraph EdgeDevices["🔌 Edge Devices"]
+        PLC["PLC/RTU"]
+        Sensors["IoT Sensors"]
+        SCADA["SCADA Systems"]
+    end
+    
+    subgraph ForgeMeshCluster["🔧 ForgeMesh Distributed Cluster"]
+        subgraph Node1["Node 1 - Ontario"]
+            Core1["forgemesh-core"]
+            Web1["forgemesh-web"]
+            P2P1["forgemesh-p2p"]
+        end
+        
+        subgraph Node2["Node 2 - Georgia"]
+            Core2["forgemesh-core"]
+            Web2["forgemesh-web"]
+            P2P2["forgemesh-p2p"]
+        end
+        
+        subgraph Node3["Node 3 - Texas"]
+            Core3["forgemesh-core"]
+            Web3["forgemesh-web"]
+            P2P3["forgemesh-p2p"]
+        end
+    end
+    
+    subgraph Consumers["📊 Data Consumers"]
+        Dashboard["Web Dashboard"]
+        Grafana["Grafana"]
+        IgnitionSCADA["Ignition SCADA"]
+    end
+    
+    EdgeDevices -->|"Modbus/MQTT"| ForgeMeshCluster
+    Node1 <-->|"Iroh P2P"| Node2
+    Node2 <-->|"Iroh P2P"| Node3
+    Node1 <-->|"Iroh P2P"| Node3
+    ForgeMeshCluster -->|"REST/WebSocket"| Consumers
+    
+    style ForgeMeshCluster fill:#1a1a2e,stroke:#16213e,color:#eee
+    style EdgeDevices fill:#0f3460,stroke:#16213e,color:#fff
+    style Consumers fill:#0f3460,stroke:#16213e,color:#fff
+```
+
 ## 1. Storage Layer: Content-Addressed Merkle DAG
 
 ### 1.1 Data Model
@@ -35,6 +82,25 @@ Column Families:
 - `data:{hash}` -> serialized DataNode
 - `idx:{sensor_id}` -> latest hash (linked list head)
 
+### 1.3 Merkle Chain Visualization
+
+```mermaid
+flowchart LR
+    subgraph Chain["Sensor: furnace-01-temp"]
+        N1["DataNode 1<br/>t: 1000ns<br/>v: 24.5°C<br/>hash: 0x9a3f..."]
+        N2["DataNode 2<br/>t: 2000ns<br/>v: 25.0°C<br/>hash: 0x7b2e..."]
+        N3["DataNode 3<br/>t: 3000ns<br/>v: 25.3°C<br/>hash: 0x4c1d..."]
+        N4["DataNode 4<br/>t: 4000ns<br/>v: 24.8°C<br/>hash: 0x8f5a..."]
+    end
+    
+    N4 -->|"parent_hash"| N3
+    N3 -->|"parent_hash"| N2
+    N2 -->|"parent_hash"| N1
+    N1 -->|"parent_hash"| NULL["∅ Genesis"]
+    
+    style Chain fill:#1a1a2e,stroke:#16213e,color:#eee
+```
+
 ## 2. Synchronization Layer: CAR Files & Delta Encoding
 
 ### 2.1 CAR Format (Content Addressable aRchive)
@@ -59,6 +125,25 @@ For efficient mesh synchronization:
 3. **Merkle Proof:** Only transfer missing branches of the tree
 4. **Bandwidth:** 95% reduction vs full dump for typical 24h delta
 
+### 2.3 Sync Protocol Flow
+
+```mermaid
+sequenceDiagram
+    participant A as Node A (Ontario)
+    participant B as Node B (Georgia)
+    
+    Note over A,B: Delta Sync Protocol
+    
+    A->>B: 1. Send Bloom Filter (hashes)
+    B->>B: 2. Calculate set difference
+    B->>A: 3. Request missing blocks
+    A->>B: 4. Stream CAR file (missing branches)
+    B->>B: 5. Verify Merkle proofs
+    B->>A: 6. ACK sync complete
+    
+    Note over A,B: 95% bandwidth reduction vs full dump
+```
+
 ## 3. Distributed Layer: CRDTs & Gossip
 
 ### 3.1 Consistency Model: Eventual + Causal
@@ -80,7 +165,35 @@ Resolution:
 2. **Strategy:** Keep both values, present to user (last-write-wins for auto-merge)
 3. **Reconciliation:** Automated on partition healing via GossipSub
 
-### 3.3 Network: Iroh (QUIC/Noise Protocol)
+### 3.3 Conflict Resolution Flow
+
+```mermaid
+flowchart TD
+    Start["Partition Healed<br/>Nodes Reconnect"] --> Compare["Compare Vector Clocks"]
+    
+    Compare --> Concurrent{"Concurrent<br/>Writes?"}
+    
+    Concurrent -->|"VC_A dominates"| AcceptA["Accept Node A's value"]
+    Concurrent -->|"VC_B dominates"| AcceptB["Accept Node B's value"]
+    Concurrent -->|"Neither dominates"| Conflict["Conflict Detected"]
+    
+    Conflict --> Strategy{"Resolution<br/>Strategy"}
+    Strategy -->|"Auto"| LWW["Last-Write-Wins<br/>(by timestamp)"]
+    Strategy -->|"Manual"| Both["Keep Both Values<br/>Present to User"]
+    
+    LWW --> Merge["CRDT Merge"]
+    Both --> Merge
+    AcceptA --> Merge
+    AcceptB --> Merge
+    
+    Merge --> Gossip["GossipSub Broadcast"]
+    Gossip --> Converge["All Nodes Converge"]
+    
+    style Start fill:#0f3460,stroke:#16213e,color:#fff
+    style Converge fill:#0f3460,stroke:#16213e,color:#fff
+```
+
+### 3.4 Network: Iroh (QUIC/Noise Protocol)
 - **Transport:** QUIC over UDP (faster than TCP for high-latency industrial WANs)
 - **Encryption:** Noise Protocol (modern, formal verification)
 - **NAT Traversal:** Automatic hole-punching (no VPN required)

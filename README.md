@@ -18,27 +18,38 @@ ForgeMesh is a production-grade, distributed time-series database designed for i
 
 ## Architecture
 
-```
-+-------------------------------------------------------------+
-|                    FORGEMESH NODE                             |
-|  +--------------+  +--------------+  +------------------+    |
-|  | Axum Web UI  |  |  Merkle DAG  |  |   Iroh P2P       |   |
-|  | (Real-time   |  |  Storage     |  |   (QUIC/Noise)   |   |
-|  |  Dashboard)  |  |  (SHA3-256)  |  |   GossipSub      |   |
-|  +--------------+  +--------------+  +------------------+    |
-|         |                  |                    |             |
-|  +-----------------------------------------------------------+
-|  |              Sled LSM-Tree (Embedded)                     |
-|  |         Zero-config, ACID-compliant storage               |
-|  +-----------------------------------------------------------+
-+-------------------------------------------------------------+
-                              |
-                              v P2P Sync (Phase 3)
-+-------------------------------------------------------------+
-|                    SISTER NODES                               |
-|         (Ontario, Georgia, Texas facilities)                  |
-|              Automatic partition healing                      |
-+-------------------------------------------------------------+
+```mermaid
+flowchart TB
+    subgraph ForgeMeshNode["🔧 FORGEMESH NODE"]
+        direction TB
+        subgraph AppLayer["Application Layer"]
+            direction LR
+            WebUI["🌐 Axum Web UI<br/>Real-time Dashboard"]
+            MerkleDAG["🔗 Merkle DAG<br/>Storage (SHA3-256)"]
+            IrohP2P["📡 Iroh P2P<br/>QUIC/Noise + GossipSub"]
+        end
+        
+        subgraph StorageLayer["Storage Layer"]
+            Sled["💾 Sled LSM-Tree (Embedded)<br/>Zero-config, ACID-compliant storage"]
+        end
+        
+        WebUI --> Sled
+        MerkleDAG --> Sled
+        IrohP2P --> Sled
+    end
+    
+    subgraph SisterNodes["🏭 SISTER NODES"]
+        Ontario["Ontario Plant"]
+        Georgia["Georgia Plant"]
+        Texas["Texas Plant"]
+    end
+    
+    ForgeMeshNode <-->|"P2P Sync<br/>Automatic Partition Healing"| SisterNodes
+    
+    style ForgeMeshNode fill:#1a1a2e,stroke:#16213e,color:#eee
+    style AppLayer fill:#0f3460,stroke:#16213e,color:#fff
+    style StorageLayer fill:#0f3460,stroke:#16213e,color:#fff
+    style SisterNodes fill:#1a1a2e,stroke:#16213e,color:#eee
 ```
 
 ### Design Principles
