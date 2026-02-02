@@ -1,0 +1,14 @@
+[package]
+name = "forgemesh-web"
+version = "0.2.0"
+edition = "2021"
+
+[dependencies]
+forgemesh-core = { path = "../forgemesh-core" }
+axum = { workspace = true, features = ["ws"] }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tower-http = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }

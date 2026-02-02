@@ -1,0 +1,8 @@
+/target
+**/*.rs.bk
+Cargo.lock
+forge_data/
+*.car
+.DS_Store
+.claude/
+*.log

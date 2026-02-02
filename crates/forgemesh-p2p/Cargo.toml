@@ -1,0 +1,18 @@
+[package]
+name = "forgemesh-p2p"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+forgemesh-core = { path = "../forgemesh-core" }
+forgemesh-sync = { path = "../forgemesh-sync" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+crdts = { workspace = true }
+iroh = { workspace = true }
+iroh-gossip = { workspace = true }
+futures = { workspace = true }
+bytes = { workspace = true }

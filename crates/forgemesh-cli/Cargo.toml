@@ -1,0 +1,21 @@
+[package]
+name = "forgemesh-cli"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "forgemesh-cli"
+path = "src/main.rs"
+
+[dependencies]
+forgemesh-core = { path = "../forgemesh-core" }
+forgemesh-sync = { path = "../forgemesh-sync" }
+forgemesh-p2p = { path = "../forgemesh-p2p" }
+forgemesh-web = { path = "../forgemesh-web" }
+tokio = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+indicatif = { workspace = true }
+axum = { workspace = true }
