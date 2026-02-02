@@ -138,7 +138,7 @@ POST /api/export/:id              # Export sensor to CAR format
 
 ## Technical Validation
 
-### The "Recruiter Demo" Script
+###  "Demo" Script
 Run this to prove all four architectural phases work:
 
 ```bash
@@ -169,26 +169,6 @@ curl http://localhost:8080/api/sensor/demo-line-temp/analytics
    - store::tests::test_put_get
    - merkle::tests::test_verify_chain
 ```
-
-### Resume Alignment
-
-This project validates these Senior/Staff Engineer competencies:
-
-> **"Architected content-addressed storage engine using Merkle DAGs and embedded LSM-trees (Sled), achieving O(log n) retrieval with cryptographic integrity verification (SHA3-256) for high-frequency industrial telemetry."**
->
-> *Validates: systems programming, database internals, cryptography*
-
-> **"Engineered differential synchronization protocol using Merkle proofs and IPLD CAR archives, enabling 95% bandwidth reduction for air-gapped industrial data migration."**
->
-> *Validates: distributed systems, protocol design, embedded optimization*
-
-> **"Designed eventually-consistent distributed topology using CRDTs (Vector Clocks, LWW-Registers) and epidemic gossip protocols; achieved automatic partition healing with zero central coordinator."**
->
-> *Validates: distributed consensus, network programming, fault tolerance*
-
-> **"Implemented Welford's online algorithm for O(1) memory statistical analysis, enabling 24/7 anomaly detection on resource-constrained Raspberry Pi edge hardware."**
->
-> *Validates: edge computing, statistics, embedded systems*
 
 ## Project Structure
 
