@@ -1,0 +1,2805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vigil | Operational Incident Intelligence</title>
+  <meta
+    name="description"
+    content="Vigil transforms noisy industrial signals into explainable incidents, operator actions, and replayable audit trails."
+  />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=Sora:wght@400;500;600;700;800&display=swap');
+
+    :root {
+      --bg: #020304;
+      --bg-2: #06080b;
+      --panel: rgba(10, 11, 14, 0.82);
+      --panel-2: rgba(4, 5, 7, 0.9);
+      --panel-3: rgba(255, 255, 255, 0.035);
+      --text: #ebf3ff;
+      --muted: #98a7c2;
+      --line: rgba(192, 208, 255, 0.12);
+      --line-strong: rgba(192, 208, 255, 0.2);
+      --cyan: #62d8ff;
+      --blue: #7aa2ff;
+      --violet: #9f7cff;
+      --green: #41f0a6;
+      --amber: #ffbe64;
+      --red: #ff6b7a;
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.38);
+      --radius: 24px;
+      --max: 1480px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: "Sora", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 15%, rgba(98, 216, 255, 0.08), transparent 24%),
+        radial-gradient(circle at 85% 20%, rgba(159, 124, 255, 0.09), transparent 26%),
+        radial-gradient(circle at 50% 100%, rgba(65, 240, 166, 0.05), transparent 28%),
+        linear-gradient(180deg, #010203 0%, #030406 38%, #06080b 100%);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+      background-size: 46px 46px;
+      mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.75), transparent 82%);
+      opacity: 0.36;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    button, input, textarea { font: inherit; }
+    .wrap { max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+    .card {
+      background: linear-gradient(180deg, rgba(14, 16, 20, 0.9), rgba(4, 5, 7, 0.94));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+    .eyebrow {
+      color: #c9d5f2;
+      text-transform: uppercase;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      margin: 22px 0 16px;
+      font-family: "IBM Plex Mono", monospace;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(14px);
+      color: #c8d7f6;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      font-family: "IBM Plex Mono", monospace;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--green);
+      box-shadow: 0 0 18px rgba(65, 240, 166, 0.7);
+    }
+    .muted { color: var(--muted); }
+    .section-title {
+      font-size: clamp(30px, 5vw, 54px);
+      line-height: 1.02;
+      margin: 0 0 18px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+    }
+    .section-copy {
+      font-size: 18px;
+      line-height: 1.7;
+      color: #b2c0db;
+      max-width: 760px;
+      margin: 0;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 13px 18px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      color: var(--text);
+      font-weight: 700;
+      font-size: 14px;
+      background: rgba(255, 255, 255, 0.03);
+      cursor: pointer;
+      transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    }
+    .btn:disabled,
+    input:disabled,
+    textarea:disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(122, 162, 255, 0.34);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, rgba(98, 216, 255, 0.16), rgba(159, 124, 255, 0.18));
+      box-shadow: 0 14px 34px rgba(122, 162, 255, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+    .btn-success { background: linear-gradient(135deg, rgba(65, 240, 166, 0.15), rgba(98, 216, 255, 0.1)); }
+    .btn-warn { background: rgba(255, 190, 100, 0.12); border-color: rgba(255, 190, 100, 0.26); }
+    .btn-danger { background: rgba(255, 107, 122, 0.12); border-color: rgba(255, 107, 122, 0.26); }
+    .mono {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .hash {
+      display: block;
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.16);
+      color: #b8f7d5;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+      word-break: break-all;
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(16px);
+      background: linear-gradient(180deg, rgba(3, 4, 5, 0.82), rgba(3, 4, 5, 0.52));
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 78px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+    .logo {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, #73dfff, #8f7bff 55%, #4bf5a8);
+      box-shadow: 0 12px 28px rgba(115, 223, 255, 0.28);
+    }
+    .logo::before, .logo::after {
+      content: "";
+      position: absolute;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.9);
+    }
+    .logo::before { width: 16px; height: 16px; left: 8px; top: 8px; }
+    .logo::after { width: 8px; height: 8px; right: 8px; bottom: 8px; }
+    .nav-links {
+      display: flex;
+      gap: 26px;
+      color: #c5d2ec;
+      font-size: 14px;
+    }
+    .nav-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .hero { padding: 72px 0 34px; }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.06fr 0.94fr;
+      gap: 28px;
+      align-items: stretch;
+    }
+    .hero-copy h1 {
+      margin: 0 0 18px;
+      font-size: clamp(48px, 7vw, 88px);
+      line-height: 0.92;
+      letter-spacing: -0.06em;
+      font-weight: 900;
+    }
+    .gradient {
+      background: linear-gradient(90deg, #f5fbff 0%, #8adfff 28%, #9d8dff 62%, #42ecab 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .hero-copy p {
+      color: #b5c4df;
+      font-size: 19px;
+      line-height: 1.78;
+      max-width: 700px;
+      margin: 0 0 28px;
+    }
+    .hero-cta {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 26px;
+    }
+    .proof {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      max-width: 760px;
+    }
+    .proof-card {
+      padding: 18px;
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .proof-card strong {
+      display: block;
+      font-size: 28px;
+      letter-spacing: -0.04em;
+      margin-bottom: 4px;
+    }
+    .proof-card span {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    .hero-status {
+      padding: 18px;
+      position: relative;
+      overflow: hidden;
+      min-height: 100%;
+    }
+    .hero-status::before {
+      content: "";
+      position: absolute;
+      inset: -25% auto auto -10%;
+      width: 280px;
+      height: 280px;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(98, 216, 255, 0.18), transparent 70%);
+      filter: blur(10px);
+    }
+    .health-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+    .stat {
+      padding: 18px;
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .stat-label {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #c2d3f3;
+    }
+    .stat-value {
+      margin-top: 10px;
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: -0.05em;
+    }
+    .status-stack {
+      display: grid;
+      gap: 14px;
+    }
+    .status-card {
+      padding: 18px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .status-card.alert {
+      border-color: rgba(255, 107, 122, 0.26);
+      background: linear-gradient(135deg, rgba(255, 107, 122, 0.08), rgba(255, 255, 255, 0.02));
+    }
+    .status-card h3 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #c2d3f3;
+      font-family: "IBM Plex Mono", monospace;
+    }
+    .status-card p {
+      margin: 0;
+      color: #d7e6ff;
+      line-height: 1.7;
+      font-size: 14px;
+    }
+
+    section { padding: 86px 0; }
+    .app-section { padding-top: 22px; }
+    .app-shell { padding: 18px; }
+    .chrome {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 12px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.025);
+      margin-bottom: 16px;
+    }
+    .chrome-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .chrome-left i {
+      display: block;
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #ff5f57;
+    }
+    .chrome-left i:nth-child(2) { background: #febc2e; }
+    .chrome-left i:nth-child(3) { background: #28c840; }
+    .chrome-url {
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      color: #b8c8e6;
+      font-size: 13px;
+      font-family: "IBM Plex Mono", monospace;
+    }
+    .app-grid {
+      display: grid;
+      grid-template-columns: 300px 1fr 390px;
+      gap: 16px;
+      align-items: start;
+    }
+    .pane {
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.022);
+      padding: 16px;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .topbar h3 {
+      margin: 0;
+      font-size: 14px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #c6d6f4;
+      font-family: "IBM Plex Mono", monospace;
+    }
+    .seg {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .seg span {
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.04);
+      font-size: 12px;
+      color: #9fb1d1;
+      font-family: "IBM Plex Mono", monospace;
+    }
+    .seg span.active {
+      background: linear-gradient(135deg, rgba(98, 216, 255, 0.18), rgba(159, 124, 255, 0.14));
+      color: #ebf6ff;
+    }
+    .sensor-list,
+    .incident-list,
+    .timeline-list,
+    .caps-list {
+      display: grid;
+      gap: 12px;
+    }
+    .sensor-button,
+    .incident-card,
+    .mini-panel {
+      width: 100%;
+      padding: 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0.012));
+      text-align: left;
+      color: var(--text);
+      cursor: pointer;
+      transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .sensor-button:hover,
+    .sensor-button.active,
+    .incident-card:hover,
+    .incident-card.active {
+      transform: translateY(-1px);
+      border-color: rgba(122, 162, 255, 0.34);
+      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.2);
+    }
+    .sensor-button strong,
+    .incident-title {
+      display: block;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+    }
+    .sensor-subtle,
+    .incident-meta {
+      font-size: 12px;
+      color: #9bb0d3;
+      line-height: 1.5;
+      font-family: "IBM Plex Mono", monospace;
+    }
+    .incident-reason {
+      font-size: 14px;
+      color: #d7e6ff;
+      line-height: 1.6;
+      margin: 10px 0 0;
+    }
+    .severity {
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      font-family: "IBM Plex Mono", monospace;
+    }
+    .severity-critical {
+      background: rgba(255, 107, 122, 0.14);
+      color: #ffb0ba;
+      border: 1px solid rgba(255, 107, 122, 0.24);
+    }
+    .severity-high {
+      background: rgba(255, 190, 100, 0.14);
+      color: #ffd59a;
+      border: 1px solid rgba(255, 190, 100, 0.24);
+    }
+    .severity-medium {
+      background: rgba(98, 216, 255, 0.14);
+      color: #b7ebff;
+      border: 1px solid rgba(98, 216, 255, 0.24);
+    }
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .chip {
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: #b6c6e4;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      font-family: "IBM Plex Mono", monospace;
+    }
+    .chip.ok { color: #acf3cf; }
+    .chip.warn { color: #ffd59a; }
+    .chip.hot { color: #ffb4bf; }
+    .control-strip {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .demo-panel {
+      padding: 18px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background:
+        radial-gradient(circle at top left, rgba(98, 216, 255, 0.08), transparent 38%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.018));
+      margin-bottom: 16px;
+    }
+    .demo-copy {
+      margin: 8px 0 14px;
+      color: #b8c8e6;
+      line-height: 1.65;
+      max-width: 820px;
+    }
+    .demo-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .demo-steps {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .demo-step {
+      padding: 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      background: rgba(255, 255, 255, 0.03);
+      min-height: 108px;
+    }
+    .demo-step.active {
+      border-color: rgba(98, 216, 255, 0.28);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+    .demo-step.done {
+      border-color: rgba(65, 240, 166, 0.26);
+    }
+    .demo-step-num {
+      font-family: "IBM Plex Mono", monospace;
+      color: #91a6cd;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+    .demo-step h4 {
+      margin: 0 0 6px;
+      font-size: 15px;
+      letter-spacing: -0.02em;
+    }
+    .demo-step p {
+      margin: 0;
+      color: #aebfdd;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .control-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .control-row input,
+    .detail-note textarea,
+    .detail-note input,
+    .copilot-note textarea,
+    .copilot-note input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(3, 4, 5, 0.92);
+      color: var(--text);
+    }
+    .control-row input {
+      max-width: 180px;
+      margin-right: auto;
+    }
+    .chart-wrap {
+      height: 360px;
+      border-radius: 22px;
+      padding: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
+      margin-bottom: 16px;
+    }
+    .telemetry-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+    .mini-panel {
+      cursor: default;
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .metric-lg {
+      font-size: 36px;
+      font-weight: 900;
+      letter-spacing: -0.06em;
+    }
+    .spark {
+      height: 76px;
+      border-radius: 14px;
+      margin-top: 12px;
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .spark svg { position: absolute; inset: 0; }
+    .feed {
+      display: grid;
+      gap: 10px;
+      max-height: 320px;
+      overflow: auto;
+    }
+    .feed-item,
+    .timeline-event,
+    .action-entry {
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      line-height: 1.55;
+      color: #d7e6ff;
+    }
+    .detail-note {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .detail-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 2px;
+    }
+    .detail-title {
+      margin: 10px 0 12px;
+      font-size: 30px;
+      line-height: 1.08;
+      letter-spacing: -0.04em;
+    }
+    .tagline {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--line);
+    }
+    .detail-paragraph {
+      margin: 0 0 10px;
+      color: #d7e6ff;
+      line-height: 1.7;
+      font-size: 15px;
+    }
+    .detail-section {
+      margin-top: 18px;
+      display: grid;
+      gap: 10px;
+    }
+    .copilot-panel {
+      margin-top: 22px;
+      display: grid;
+      gap: 12px;
+    }
+    .copilot-status {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background:
+        radial-gradient(circle at top left, rgba(122, 162, 255, 0.1), transparent 40%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.018));
+    }
+    .copilot-status strong {
+      display: block;
+      margin-bottom: 4px;
+      letter-spacing: -0.02em;
+    }
+    .copilot-actions,
+    .copilot-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .copilot-note {
+      display: grid;
+      gap: 10px;
+    }
+    .copilot-output,
+    .copilot-citations,
+    .copilot-log {
+      display: grid;
+      gap: 10px;
+    }
+    .copilot-headline {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.15;
+      letter-spacing: -0.04em;
+    }
+    .copilot-answer {
+      margin: 0;
+      white-space: pre-wrap;
+      line-height: 1.72;
+      color: #d9e7ff;
+    }
+    .copilot-citation {
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .copilot-citation strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+    .detail-section h4,
+    .replay-heading,
+    .workflow h4,
+    .feature h3,
+    .quote h2 {
+      margin: 0;
+      letter-spacing: -0.03em;
+    }
+    .empty {
+      color: var(--muted);
+      border: 1px dashed rgba(255, 255, 255, 0.1);
+      border-radius: 18px;
+      padding: 18px;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .replay-grid {
+      display: grid;
+      gap: 14px;
+    }
+    .verified {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(65, 240, 166, 0.22);
+      background: linear-gradient(135deg, rgba(65, 240, 166, 0.1), rgba(98, 216, 255, 0.06));
+      color: #dafcea;
+    }
+    .code-box {
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(0, 0, 0, 0.28);
+      color: #d8e0ef;
+      padding: 14px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 220px;
+      overflow: auto;
+    }
+    .feature-grid {
+      display: grid;
+      gap: 24px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-top: 30px;
+    }
+    .feature {
+      padding: 24px;
+    }
+    .icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(98, 216, 255, 0.18), rgba(159, 124, 255, 0.18));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 22px;
+      margin-bottom: 18px;
+    }
+    .feature h3 {
+      font-size: 22px;
+      margin-bottom: 12px;
+    }
+    .feature p {
+      margin: 0;
+      color: #b2c2dd;
+      line-height: 1.7;
+      font-size: 15px;
+    }
+    .feature ul {
+      list-style: none;
+      padding: 0;
+      margin: 16px 0 0;
+      display: grid;
+      gap: 10px;
+    }
+    .feature li {
+      color: #c9d8f2;
+      font-size: 14px;
+      position: relative;
+      padding-left: 18px;
+    }
+    .feature li::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--cyan);
+      position: absolute;
+      left: 0;
+      top: 8px;
+    }
+    .story {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      align-items: stretch;
+    }
+    .workflow {
+      padding: 26px;
+    }
+    .workflow-steps {
+      display: grid;
+      gap: 16px;
+      margin-top: 18px;
+    }
+    .step {
+      display: grid;
+      grid-template-columns: 56px 1fr;
+      gap: 14px;
+      align-items: start;
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .step-num {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(98, 216, 255, 0.18), rgba(65, 240, 166, 0.14));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-weight: 900;
+      font-size: 20px;
+    }
+    .step p {
+      margin: 8px 0 0;
+      color: #b1c2df;
+      line-height: 1.7;
+      font-size: 14px;
+    }
+    .quote {
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 26px;
+    }
+    .quote blockquote {
+      margin: 0;
+      font-size: 32px;
+      line-height: 1.18;
+      letter-spacing: -0.04em;
+      font-weight: 800;
+    }
+    .quote small {
+      display: block;
+      margin-top: 22px;
+      color: #a9bcda;
+      line-height: 1.7;
+      font-size: 15px;
+    }
+    .cta {
+      padding: 36px;
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: center;
+      background:
+        radial-gradient(circle at top left, rgba(98, 216, 255, 0.18), transparent 32%),
+        radial-gradient(circle at bottom right, rgba(159, 124, 255, 0.18), transparent 28%),
+        linear-gradient(180deg, rgba(17, 30, 54, 0.82), rgba(8, 18, 34, 0.9));
+    }
+    .cta h2 {
+      margin: 0 0 10px;
+      font-size: clamp(34px, 4vw, 56px);
+      line-height: 1;
+      letter-spacing: -0.05em;
+    }
+    .cta p {
+      margin: 0;
+      color: #b3c4df;
+      max-width: 620px;
+      line-height: 1.7;
+    }
+    footer {
+      padding: 28px 0 50px;
+      color: #93a8cb;
+    }
+    .foot {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: center;
+    }
+    .micro {
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    /* Drag-and-Drop Incident Queue Styles */
+    .queue-section {
+      padding: 86px 0;
+      background: linear-gradient(180deg, rgba(6, 8, 11, 0.95), rgba(2, 3, 4, 0.98));
+    }
+    .queue-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .queue-title {
+      font-size: clamp(28px, 4vw, 42px);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      margin: 0;
+      background: linear-gradient(90deg, #ebf3ff 0%, #7aa2ff 50%, #9f7cff 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .queue-subtitle {
+      color: var(--muted);
+      font-size: 15px;
+      margin: 8px 0 0;
+      max-width: 560px;
+    }
+    .queue-lanes {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+    .queue-lane {
+      background: rgba(14, 16, 20, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 16px;
+      min-height: 400px;
+      max-height: 70vh;
+      overflow-y: auto;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+    .queue-lane::-webkit-scrollbar {
+      width: 6px;
+    }
+    .queue-lane::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 3px;
+    }
+    .queue-lane::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 3px;
+    }
+    .queue-lane.drag-over {
+      border-color: var(--cyan);
+      box-shadow: 0 0 24px rgba(98, 216, 255, 0.2), inset 0 0 12px rgba(98, 216, 255, 0.05);
+      background: rgba(98, 216, 255, 0.04);
+    }
+    .queue-lane[data-status="open"] {
+      border-top: 3px solid var(--amber);
+    }
+    .queue-lane[data-status="acknowledged"] {
+      border-top: 3px solid var(--blue);
+    }
+    .queue-lane[data-status="assigned"] {
+      border-top: 3px solid var(--violet);
+    }
+    .queue-lane[data-status="resolved"] {
+      border-top: 3px solid var(--green);
+    }
+    .lane-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .lane-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #c5d2ec;
+    }
+    .lane-count {
+      background: rgba(255, 255, 255, 0.08);
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-family: "IBM Plex Mono", monospace;
+    }
+    .queue-items {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .queue-item {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 16px;
+      padding: 14px;
+      cursor: default;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
+      position: relative;
+    }
+    .queue-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
+      border-color: rgba(122, 162, 255, 0.3);
+    }
+    .queue-item:active {
+      cursor: grabbing;
+    }
+    .queue-item.dragging {
+      opacity: 0.5;
+      transform: scale(0.98);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+    .queue-item.drag-ghost {
+      opacity: 0.9;
+      transform: rotate(2deg) scale(1.02);
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
+      border-color: var(--cyan);
+      background: rgba(98, 216, 255, 0.08);
+    }
+    .queue-item.drop-target {
+      border-color: var(--cyan);
+      background: rgba(98, 216, 255, 0.06);
+      box-shadow: inset 0 0 0 2px rgba(98, 216, 255, 0.3);
+    }
+    .item-handle {
+      position: absolute;
+      left: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      opacity: 0.3;
+      transition: opacity 0.15s ease;
+      cursor: grab;
+      padding: 8px 4px;
+      user-select: none;
+    }
+    .queue-item:hover .item-handle {
+      opacity: 0.7;
+    }
+    .item-handle:active {
+      cursor: grabbing;
+    }
+    .item-handle span {
+      display: block;
+      width: 14px;
+      height: 2px;
+      background: var(--text);
+      border-radius: 1px;
+    }
+    .item-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .item-title {
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.4;
+      color: var(--text);
+      flex: 1;
+    }
+    .item-rank {
+      position: absolute;
+      top: -8px;
+      left: -8px;
+      width: 24px;
+      height: 24px;
+      background: linear-gradient(135deg, var(--cyan), var(--violet));
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 800;
+      font-family: "IBM Plex Mono", monospace;
+      color: #020304;
+      box-shadow: 0 4px 12px rgba(98, 216, 255, 0.4);
+      opacity: 0;
+      transform: scale(0.5);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    .queue-item.drag-ghost .item-rank,
+    .queue-item:hover .item-rank {
+      opacity: 1;
+      transform: scale(1);
+    }
+    .item-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--muted);
+      font-family: "IBM Plex Mono", monospace;
+    }
+    .item-machine {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .item-severity {
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .item-severity.critical {
+      background: rgba(255, 107, 122, 0.15);
+      color: #ffb0ba;
+      border: 1px solid rgba(255, 107, 122, 0.25);
+    }
+    .item-severity.high {
+      background: rgba(255, 190, 100, 0.15);
+      color: #ffd59a;
+      border: 1px solid rgba(255, 190, 100, 0.25);
+    }
+    .item-severity.medium {
+      background: rgba(98, 216, 255, 0.15);
+      color: #b7ebff;
+      border: 1px solid rgba(98, 216, 255, 0.25);
+    }
+    .item-type {
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .empty-lane {
+      text-align: center;
+      padding: 32px 16px;
+      color: var(--muted);
+      font-size: 13px;
+      opacity: 0.6;
+    }
+    .empty-lane svg {
+      width: 32px;
+      height: 32px;
+      margin-bottom: 12px;
+      opacity: 0.4;
+    }
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 14px 20px;
+      background: rgba(14, 16, 20, 0.95);
+      border: 1px solid rgba(65, 240, 166, 0.3);
+      border-radius: 14px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      color: var(--text);
+      transform: translateY(100px);
+      opacity: 0;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      z-index: 1000;
+      backdrop-filter: blur(16px);
+    }
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    .toast.error {
+      border-color: rgba(255, 107, 122, 0.4);
+      background: rgba(255, 107, 122, 0.1);
+    }
+    .toast-icon {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+    .toast.success .toast-icon { color: var(--green); }
+    .toast.error .toast-icon { color: var(--red); }
+
+    @media (max-width: 1200px) {
+      .hero-grid,
+      .story,
+      .cta,
+      .feature-grid,
+      .app-grid,
+      .telemetry-grid {
+        grid-template-columns: 1fr;
+      }
+      .proof { grid-template-columns: 1fr; }
+      .demo-steps { grid-template-columns: 1fr 1fr; }
+      .queue-lanes {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 820px) {
+      .nav-links { display: none; }
+      .nav-actions .btn:not(.btn-primary) { display: none; }
+      .hero { padding-top: 42px; }
+      .section-copy { font-size: 17px; }
+      .foot { flex-direction: column; align-items: flex-start; }
+      .health-grid { grid-template-columns: 1fr; }
+      .control-row input { max-width: none; margin-right: 0; }
+      .demo-steps { grid-template-columns: 1fr; }
+      .queue-lanes {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <a class="brand" href="#top" aria-label="Vigil home">
+        <span class="logo" aria-hidden="true"></span>
+        <span style="font-size: 20px">Vigil</span>
+      </a>
+      <nav class="nav-links">
+        <a href="#product">Product</a>
+        <a href="#capabilities">Capabilities</a>
+        <a href="#workflow">Workflow</a>
+        <a href="#trust">Auditability</a>
+      </nav>
+      <div class="nav-actions">
+        <a class="btn" href="#workflow">See Workflow</a>
+        <a class="btn btn-primary" href="#product">Launch Demo View</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <span class="pill"><span class="dot"></span> Evolved from ForgeMesh into a closed-loop operational intelligence system</span>
+          <div class="eyebrow">Operational Incident Intelligence Platform</div>
+          <h1>Turn noisy plant signals into <span class="gradient">explainable action</span>.</h1>
+          <p>
+            Vigil transforms fragmented machine logs, maintenance tickets, and operator notes into a single decision surface.
+            Detect incidents, surface root-cause context, recommend next actions, and replay every system decision with Merkle-backed integrity.
+          </p>
+          <div class="hero-cta">
+            <a class="btn btn-primary" href="#product">Explore the product</a>
+            <a class="btn" href="#trust">See replay + integrity flow</a>
+          </div>
+          <div class="proof">
+            <div class="proof-card">
+              <strong id="proofSources">3-source</strong>
+              <span>Machine logs, maintenance signals, and operator notes correlated in one workflow.</span>
+            </div>
+            <div class="proof-card">
+              <strong>Merkle-backed</strong>
+              <span>Every decision trail remains tamper-evident, replayable, and operator-verifiable.</span>
+            </div>
+            <div class="proof-card">
+              <strong id="proofMode">Local-first</strong>
+              <span>Designed for real manufacturing environments with partitions, lag, and dirty data.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card hero-status">
+          <div class="eyebrow">Live Operational Posture</div>
+          <div class="health-grid" id="heroHealth">
+            <div class="stat"><div class="stat-label">Last Ingest</div><div class="stat-value">...</div></div>
+            <div class="stat"><div class="stat-label">Open Incidents</div><div class="stat-value">...</div></div>
+            <div class="stat"><div class="stat-label">Events / Hour</div><div class="stat-value">...</div></div>
+            <div class="stat"><div class="stat-label">Data Quality</div><div class="stat-value">...</div></div>
+          </div>
+          <div class="status-stack">
+            <div class="status-card">
+              <h3>Current Recommendation</h3>
+              <p id="heroRecommendation">Loading recommendation context...</p>
+              <span class="hash" id="heroRecommendationHash">Awaiting replay payload</span>
+            </div>
+            <div class="status-card" id="backendStatusCard">
+              <h3>Backend Status</h3>
+              <p id="backendMessage">Waiting for backend handshake...</p>
+              <span class="hash" id="backendHint">Start the daemon to enable live actions.</span>
+            </div>
+            <div class="status-card">
+              <h3>Mesh Status</h3>
+              <p id="heroMesh">Waiting for mesh topology...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="app-section" id="product">
+      <div class="wrap">
+        <div class="card app-shell">
+          <div class="chrome">
+            <div class="chrome-left"><i></i><i></i><i></i></div>
+            <div class="chrome-url" id="chromeUrl">vigil://ops/incidents/live</div>
+          </div>
+
+          <div class="app-grid">
+            <aside class="pane">
+              <div class="topbar">
+                <h3>Signals</h3>
+                <div class="seg"><span class="active" id="nodePill">node-local</span></div>
+              </div>
+              <div class="sensor-list" id="sensorList"></div>
+
+              <div class="topbar" style="margin-top: 20px;">
+                <h3>Mesh View</h3>
+                <div class="seg"><span id="meshPill">syncing</span></div>
+              </div>
+              <div class="code-box" id="topologyBox">Loading topology...</div>
+            </aside>
+
+            <section class="pane">
+              <div class="topbar">
+                <div>
+                  <h3 id="chartHeading">Telemetry Surface</h3>
+                  <div class="mono" id="chartMeta">Select a sensor to inspect telemetry, analytics, and write controls.</div>
+                </div>
+                <div class="seg">
+                  <span class="active" id="range24">24h</span>
+                  <span id="range1">1h</span>
+                  <span id="rangeReplay">Live</span>
+                </div>
+              </div>
+
+              <div class="control-strip">
+                <div class="control-row">
+                  <input id="manualValue" data-api-control type="number" step="0.1" placeholder="Manual value" />
+                  <button class="btn btn-primary" data-api-control type="button" onclick="writeTelemetry()">Commit value</button>
+                  <button class="btn" data-api-control type="button" onclick="simulateSelected()">Inject signal</button>
+                  <button class="btn" data-api-control type="button" onclick="exportCurrent()">Export CAR</button>
+                </div>
+                <div class="control-row">
+                  <button class="btn" type="button" onclick="setTimeRange('1h')">1h window</button>
+                  <button class="btn" type="button" onclick="setTimeRange('24h')">24h window</button>
+                  <span class="pill"><span class="dot"></span><span id="chartIntegrity">Telemetry chain verified</span></span>
+                </div>
+              </div>
+
+              <div class="demo-panel">
+                <div class="topbar">
+                  <h3>Demo Control</h3>
+                  <div class="seg"><span class="active" id="demoStateBadge">ready</span></div>
+                </div>
+                <p class="demo-copy" id="demoNarrative">
+                  Run the detector, open the hottest incident, then walk the full loop from signal inspection to replay-backed operator action.
+                </p>
+                <div class="demo-actions">
+                  <button class="btn btn-primary" id="guidedDemoButton" data-api-control type="button" onclick="runGuidedDemo()">Play walkthrough</button>
+                  <button class="btn" id="detectButton" data-api-control type="button" onclick="runDetection()">Run detector</button>
+                  <button class="btn" id="openIncidentButton" type="button" onclick="openTopIncident()">Open top incident</button>
+                </div>
+                <div class="demo-steps" id="demoSteps"></div>
+              </div>
+
+              <div class="chart-wrap">
+                <canvas id="mainChart" aria-label="Telemetry chart"></canvas>
+              </div>
+
+              <div class="telemetry-grid">
+                <div class="mini-panel">
+                  <div class="topbar">
+                    <h3>Analytics</h3>
+                    <div class="seg"><span id="analyticsTrend">trend</span></div>
+                  </div>
+                  <div class="metric-lg" id="analyticsHeadline">--</div>
+                  <div class="muted" id="analyticsCopy">Awaiting sensor analytics.</div>
+                  <div class="spark">
+                    <svg viewBox="0 0 300 80" preserveAspectRatio="none" aria-hidden="true">
+                      <defs>
+                        <linearGradient id="lineA" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stop-color="#62d8ff"></stop>
+                          <stop offset="100%" stop-color="#41f0a6"></stop>
+                        </linearGradient>
+                      </defs>
+                      <path d="M0,58 C20,52 28,36 42,39 C58,42 62,56 78,54 C93,52 99,28 117,26 C138,24 144,42 163,40 C177,39 190,18 205,18 C223,18 232,35 247,34 C264,33 280,14 300,17"
+                        fill="none" stroke="url(#lineA)" stroke-width="3"></path>
+                    </svg>
+                  </div>
+                  <div class="chip-row" id="analyticsChips"></div>
+                </div>
+
+                <div class="mini-panel">
+                  <div class="topbar">
+                    <h3>Live Feed</h3>
+                    <div class="seg"><span id="connectionBadge">booting</span></div>
+                  </div>
+                  <div class="feed" id="feed"></div>
+                </div>
+              </div>
+
+              <div class="topbar" style="margin-top: 18px;">
+                <h3>Active Incidents</h3>
+                <div class="seg">
+                  <span class="active">Live</span>
+                  <span>Replay</span>
+                  <span>Audit</span>
+                </div>
+              </div>
+              <div class="incident-list" id="incidentList"></div>
+            </section>
+
+            <aside class="pane">
+              <div class="topbar">
+                <h3>Incident Detail</h3>
+                <div class="seg"><span class="active" id="detailState">awaiting</span></div>
+              </div>
+              <div id="detailPane" class="empty">Select an incident to inspect reasoning, recommendations, and operator actions.</div>
+
+              <div class="topbar" style="margin-top: 24px;">
+                <h3>Incident Copilot</h3>
+                <div class="seg"><span class="active" id="copilotStatusBadge">standby</span></div>
+              </div>
+              <div class="copilot-panel">
+                <div class="copilot-status">
+                  <div>
+                    <strong>Read-first incident copilot</strong>
+                    <div class="muted" id="copilotStatusCopy">Summarize, explain, and prepare handoff notes without changing incident state.</div>
+                  </div>
+                  <span class="tagline" id="copilotProvider">loading</span>
+                </div>
+                <div class="copilot-actions">
+                  <button class="btn" data-api-control type="button" onclick="runCopilot('summary')">summary</button>
+                  <button class="btn" data-api-control type="button" onclick="runCopilot('explain')">explain</button>
+                  <button class="btn" data-api-control type="button" onclick="runCopilot('handoff')">handoff</button>
+                  <button class="btn btn-primary" data-api-control type="button" onclick="runCopilot('ask')">ask context</button>
+                </div>
+                <div class="copilot-note">
+                  <textarea id="copilotQuestion" data-api-control placeholder="Ask a read-only question grounded in the selected incident.">What matters most right now?</textarea>
+                  <input id="copilotRequestedBy" data-api-control placeholder="Requested by" value="Supervisor_1" />
+                </div>
+                <div id="copilotPane" class="empty">Select an incident, then ask for a summary, explanation, handoff, or custom answer.</div>
+              </div>
+
+              <div class="topbar" id="trust" style="margin-top: 24px;">
+                <h3>Replay / Audit</h3>
+                <div class="seg"><span id="verificationBadge">pending</span></div>
+              </div>
+              <div id="replayPane" class="replay-grid">
+                <div class="empty">Replay payload will appear here.</div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="queue" class="queue-section">
+      <div class="wrap">
+        <div class="queue-header">
+          <div>
+            <h2 class="queue-title">Incident Command Center</h2>
+            <p class="queue-subtitle">Drag incidents between lanes to route them. Drag within a lane to reprioritize. Changes persist on drop.</p>
+          </div>
+        </div>
+        <div class="card" style="padding: 20px;">
+          <div class="queue-lanes">
+            <div class="queue-lane" data-status="open" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'open')">
+              <div class="lane-header">
+                <div class="lane-title">
+                  <span style="width: 8px; height: 8px; border-radius: 999px; background: var(--amber);"></span>
+                  Open
+                </div>
+                <span class="lane-count" id="count-open">0</span>
+              </div>
+              <div class="queue-items" id="lane-open"></div>
+            </div>
+            <div class="queue-lane" data-status="acknowledged" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'acknowledged')">
+              <div class="lane-header">
+                <div class="lane-title">
+                  <span style="width: 8px; height: 8px; border-radius: 999px; background: var(--blue);"></span>
+                  Acknowledged
+                </div>
+                <span class="lane-count" id="count-acknowledged">0</span>
+              </div>
+              <div class="queue-items" id="lane-acknowledged"></div>
+            </div>
+            <div class="queue-lane" data-status="assigned" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'assigned')">
+              <div class="lane-header">
+                <div class="lane-title">
+                  <span style="width: 8px; height: 8px; border-radius: 999px; background: var(--violet);"></span>
+                  Assigned
+                </div>
+                <span class="lane-count" id="count-assigned">0</span>
+              </div>
+              <div class="queue-items" id="lane-assigned"></div>
+            </div>
+            <div class="queue-lane" data-status="resolved" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'resolved')">
+              <div class="lane-header">
+                <div class="lane-title">
+                  <span style="width: 8px; height: 8px; border-radius: 999px; background: var(--green);"></span>
+                  Resolved
+                </div>
+                <span class="lane-count" id="count-resolved">0</span>
+              </div>
+              <div class="queue-items" id="lane-resolved"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="capabilities">
+      <div class="wrap">
+        <div class="pill" style="margin-bottom: 18px;"><span class="dot"></span> Built for manufacturing environments with ambiguity, lag, and operational pressure</div>
+        <h2 class="section-title">A front end designed like a decision system, not a dashboard.</h2>
+        <p class="section-copy">
+          The interface compresses system health, evidence, recommended action, and replay history into one cohesive surface
+          so supervisors can move from signal to decision without digging through disconnected tooling.
+        </p>
+
+        <div class="feature-grid">
+          <div class="card feature">
+            <div class="icon">◌</div>
+            <h3>Messy-data fluent</h3>
+            <p>Designed around late arrivals, duplicated events, conflicting sources, and partial human notes without collapsing into noise.</p>
+            <ul>
+              <li>Three-source context in one pane</li>
+              <li>Clear confidence and severity signaling</li>
+              <li>Dirty-input tolerance without cognitive overload</li>
+            </ul>
+          </div>
+          <div class="card feature">
+            <div class="icon">↺</div>
+            <h3>Replay-native</h3>
+            <p>Replay is part of the core interaction model, making every system decision inspectable, explainable, and reviewable.</p>
+            <ul>
+              <li>Rule firing timeline</li>
+              <li>Reasoning text tied to exact inputs</li>
+              <li>Human action history in the same narrative</li>
+            </ul>
+          </div>
+          <div class="card feature">
+            <div class="icon">⟡</div>
+            <h3>Trust-forward</h3>
+            <p>Integrity status, audit continuity, and recommendation confidence feel native instead of bolted on.</p>
+            <ul>
+              <li>Merkle-backed verification state</li>
+              <li>Operator note and override visibility</li>
+              <li>Designed for high-stakes review environments</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="workflow">
+      <div class="wrap story">
+        <div class="card workflow">
+          <div class="eyebrow">Workflow</div>
+          <h2 class="section-title" style="font-size: clamp(36px, 4vw, 58px);">From ingestion to operator action in one coherent flow.</h2>
+          <div class="workflow-steps">
+            <div class="step">
+              <div class="step-num">1</div>
+              <div>
+                <h4>Ingest</h4>
+                <p>Collect machine telemetry, maintenance activity, and operator notes with no assumption that sources arrive clean or on time.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">2</div>
+              <div>
+                <h4>Detect</h4>
+                <p>Correlate events across time windows and rules so the UI presents incidents, not raw noise.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">3</div>
+              <div>
+                <h4>Explain</h4>
+                <p>Show what fired, why it fired, and what evidence raised or lowered confidence.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">4</div>
+              <div>
+                <h4>Act</h4>
+                <p>Capture acknowledgment, assignment, reroute, override, or resolution inside the same surface.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">5</div>
+              <div>
+                <h4>Replay</h4>
+                <p>Reconstruct the complete decision chain, including reasoning, operator response, and integrity verification.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card quote">
+          <div>
+            <div class="eyebrow">Design thesis</div>
+            <blockquote>
+              High-stakes operators do not need more telemetry. They need clarity, confidence, and a defensible path to action.
+            </blockquote>
+            <small>
+              Vigil keeps incidents dominant, reasoning legible, and auditability first-class. The product is not just about detection.
+              It is about trusted action under uncertainty.
+            </small>
+          </div>
+          <div class="verified">
+            <div>
+              <div style="font-weight: 800; font-size: 17px;">Built to signal product maturity</div>
+              <div class="muted" style="margin-top: 4px;">Works as a live operator surface, a demo shell, and a recruiter-readable systems artifact.</div>
+            </div>
+            <div style="font-size: 32px;">⚙</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="card cta">
+          <div>
+            <div class="eyebrow">Next step</div>
+            <h2>Use this as the operational shell for Vigil.</h2>
+            <p>
+              The page now reflects the same story as the backend: ForgeMesh evolved into a serious operational incident intelligence
+              product with explainable workflows, human action loops, and replayable trust.
+            </p>
+          </div>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <a class="btn btn-primary" href="#top">Back to top</a>
+            <a class="btn" href="#product">Review live surface</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <div class="brand">
+        <span class="logo" aria-hidden="true"></span>
+        <div>
+          <div style="font-weight: 800;">Vigil</div>
+          <div class="micro">Operational Incident Intelligence Platform</div>
+        </div>
+      </div>
+      <div class="micro">Local-first, replay-native, and wired directly to the live incident backend.</div>
+    </div>
+  </footer>
+
+  <script>
+    let selectedSensor = null;
+    let selectedIncident = null;
+    let currentRange = "24h";
+    let chart = null;
+    let incidentsCache = [];
+    let healthCache = null;
+    let copilotStatusCache = null;
+    let backendOnline = true;
+    let demoBusy = false;
+    const demoStages = [
+      {
+        key: "detect",
+        title: "Refresh detector",
+        copy: "Run the live incident pipeline against the current Merkle-backed telemetry set."
+      },
+      {
+        key: "inspect",
+        title: "Inspect the line",
+        copy: "Focus the chart on the sensor driving the hottest incident so the evidence is obvious."
+      },
+      {
+        key: "verify",
+        title: "Replay the decision",
+        copy: "Pull the audit payload, rules fired, and Merkle verification into one review surface."
+      },
+      {
+        key: "act",
+        title: "Record operator action",
+        copy: "Capture the human response in the same incident ledger so the demo closes the loop."
+      }
+    ];
+
+    function sleep(ms) {
+      return new Promise(resolve => {
+        window.setTimeout(resolve, ms);
+      });
+    }
+
+    function renderDemoState(activeStage = "detect", narrative) {
+      const activeIndex = demoStages.findIndex(stage => stage.key === activeStage);
+      const steps = document.getElementById("demoSteps");
+      const badge = document.getElementById("demoStateBadge");
+      const copy = document.getElementById("demoNarrative");
+
+      if (steps) {
+        steps.innerHTML = demoStages.map((stage, index) => {
+          const status = index < activeIndex ? "done" : index === activeIndex ? "active" : "";
+          return `
+            <div class="demo-step ${status}">
+              <div class="demo-step-num">0${index + 1}</div>
+              <h4>${escapeHtml(stage.title)}</h4>
+              <p>${escapeHtml(stage.copy)}</p>
+            </div>
+          `;
+        }).join("");
+      }
+
+      if (badge) {
+        badge.textContent = demoBusy ? "running" : activeStage;
+      }
+      if (copy && narrative) {
+        copy.textContent = narrative;
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function appendFeed(message) {
+      const feed = document.getElementById("feed");
+      const item = document.createElement("div");
+      item.className = "feed-item";
+      item.innerHTML = `<div class="mono">${new Date().toLocaleTimeString()}</div><div>${escapeHtml(message)}</div>`;
+      feed.prepend(item);
+      while (feed.children.length > 8) {
+        feed.removeChild(feed.lastChild);
+      }
+    }
+
+    function setBackendState(isOnline, errorMessage) {
+      backendOnline = isOnline;
+      const connectionBadge = document.getElementById("connectionBadge");
+      const backendStatusCard = document.getElementById("backendStatusCard");
+      const backendMessage = document.getElementById("backendMessage");
+      const backendHint = document.getElementById("backendHint");
+      const controls = document.querySelectorAll("[data-api-control]");
+
+      connectionBadge.textContent = isOnline ? "live" : "offline";
+      backendStatusCard.classList.toggle("alert", !isOnline);
+      backendMessage.textContent = isOnline
+        ? "Backend connected. Live incident, telemetry, and replay actions are available."
+        : "Backend unavailable. The page remains visible, but live actions are paused.";
+      backendHint.textContent = isOnline
+        ? "HTTP API healthy and writable."
+        : (errorMessage || "Start `cargo run -p vigil-cli -- daemon --port 8080` and refresh.");
+      controls.forEach(control => {
+        control.disabled = !isOnline;
+      });
+    }
+
+    function handleUiError(error, context) {
+      const message = error instanceof Error ? error.message : String(error);
+      appendFeed(`${context}: ${message}`);
+      return error;
+    }
+
+    async function fetchJson(url, options) {
+      try {
+        const response = await fetch(url, options);
+        if (!response.ok) {
+          throw new Error(`Request failed: ${response.status}`);
+        }
+        setBackendState(true);
+        return await response.json();
+      } catch (error) {
+        const message = error instanceof TypeError
+          ? "Backend unavailable. Start `cargo run -p vigil-cli -- daemon --port 8080` and refresh."
+          : (error instanceof Error ? error.message : String(error));
+        setBackendState(false, message);
+        throw new Error(message);
+      }
+    }
+
+    function formatDate(value) {
+      if (!value) return "n/a";
+      return new Date(value).toLocaleString();
+    }
+
+    function severityClass(severity) {
+      if (severity === "critical") return "severity-critical";
+      if (severity === "high") return "severity-high";
+      return "severity-medium";
+    }
+
+    function setTimeRange(range) {
+      currentRange = range;
+      document.getElementById("range1").classList.toggle("active", range === "1h");
+      document.getElementById("range24").classList.toggle("active", range === "24h");
+      if (selectedSensor) loadChart();
+    }
+
+    async function loadStatus() {
+      const status = await fetchJson("/api/status");
+      document.getElementById("nodePill").textContent = status.node_id;
+      document.getElementById("meshPill").textContent = status.mesh.partition_status;
+      document.getElementById("proofMode").textContent = status.mode.includes("closed-loop") ? "Closed-loop" : "Local-first";
+      document.getElementById("heroMesh").textContent =
+        `${status.mesh.partition_status} across ${status.mesh.peers_connected} connected mesh nodes. ${status.stats.consistency_model}.`;
+    }
+
+    async function loadHealth() {
+      const health = await fetchJson("/api/health");
+      healthCache = health;
+      const stats = [
+        ["Last Ingest", health.last_ingest ? new Date(health.last_ingest).toLocaleTimeString() : "n/a"],
+        ["Open Incidents", String(health.incidents_open)],
+        ["Events / Hour", String(health.events_last_hour)],
+        ["Data Quality", health.data_quality]
+      ];
+
+      document.getElementById("heroHealth").innerHTML = stats.map(([label, value]) => `
+        <div class="stat">
+          <div class="stat-label">${escapeHtml(label)}</div>
+          <div class="stat-value">${escapeHtml(value)}</div>
+        </div>
+      `).join("");
+    }
+
+    async function loadTopology() {
+      const topology = await fetchJson("/api/mesh/topology");
+      document.getElementById("topologyBox").textContent = JSON.stringify(topology, null, 2);
+    }
+
+    async function refreshSensors() {
+      const sensors = await fetchJson("/api/sensors");
+      const list = document.getElementById("sensorList");
+      list.innerHTML = sensors.map(sensor => `
+        <button class="sensor-button ${sensor === selectedSensor ? "active" : ""}" type="button" onclick="selectSensor('${escapeHtml(sensor)}')">
+          <strong>${escapeHtml(sensor)}</strong>
+          <div class="sensor-subtle">Merkle-backed telemetry source</div>
+        </button>
+      `).join("");
+
+      if (!selectedSensor && sensors.length > 0) {
+        await selectSensor(sensors[0]);
+      }
+    }
+
+    async function selectSensor(sensor) {
+      selectedSensor = sensor;
+      document.getElementById("chromeUrl").textContent = `vigil://ops/signals/${sensor}`;
+      await refreshSensors();
+      await Promise.all([loadChart(), loadAnalytics()]);
+    }
+
+    async function loadChart() {
+      if (!selectedSensor) return;
+      const history = await fetchJson(`/api/sensor/${selectedSensor}/history`);
+      const points = history.datapoints || [];
+
+      document.getElementById("chartHeading").textContent = selectedSensor;
+      document.getElementById("chartMeta").textContent = `${points.length} telemetry points in the ${currentRange} inspection window`;
+      document.getElementById("chartIntegrity").textContent = points.every(point => point.verified) ? "Telemetry chain verified" : "Verification needs attention";
+
+      const dataset = {
+        labels: points.map(point => new Date(point.x).toLocaleTimeString()),
+        datasets: [{
+          label: selectedSensor,
+          data: points.map(point => point.y),
+          borderColor: "#62d8ff",
+          backgroundColor: "rgba(98, 216, 255, 0.12)",
+          fill: true,
+          tension: 0.34,
+          pointRadius: 0,
+          borderWidth: 2.5
+        }]
+      };
+
+      const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          x: {
+            ticks: { color: "#9bb0d3", maxTicksLimit: 8 },
+            grid: { color: "rgba(255,255,255,0.05)" }
+          },
+          y: {
+            ticks: { color: "#9bb0d3" },
+            grid: { color: "rgba(255,255,255,0.05)" }
+          }
+        }
+      };
+
+      if (!chart) {
+        chart = new Chart(document.getElementById("mainChart"), {
+          type: "line",
+          data: dataset,
+          options: chartOptions
+        });
+      } else {
+        chart.data = dataset;
+        chart.options = chartOptions;
+        chart.update();
+      }
+    }
+
+    async function loadAnalytics() {
+      if (!selectedSensor) return;
+      const analytics = await fetchJson(`/api/sensor/${selectedSensor}/analytics`);
+      const stats = analytics.stats || {};
+      document.getElementById("analyticsHeadline").textContent =
+        stats.last_value !== undefined ? `${Number(stats.last_value).toFixed(2)}` : "--";
+      document.getElementById("analyticsCopy").textContent =
+        `Avg ${Number(stats.avg || 0).toFixed(2)} · Std dev ${Number(stats.std_dev || 0).toFixed(2)} · Count ${stats.count || 0}`;
+      document.getElementById("analyticsTrend").textContent = analytics.trend || "trend";
+
+      const chips = [
+        `min ${Number(stats.min || 0).toFixed(2)}`,
+        `max ${Number(stats.max || 0).toFixed(2)}`,
+        `variance ${Number(stats.variance || 0).toFixed(2)}`
+      ];
+      document.getElementById("analyticsChips").innerHTML = chips
+        .map(value => `<span class="chip">${escapeHtml(value)}</span>`)
+        .join("");
+    }
+
+    async function writeTelemetry() {
+      try {
+        if (!selectedSensor) return;
+        const input = document.getElementById("manualValue");
+        const value = input.value.trim();
+        if (!value) {
+          appendFeed("Enter a value before committing telemetry.");
+          return;
+        }
+
+        await fetchJson(`/api/sensor/${selectedSensor}/write`, {
+          method: "POST",
+          body: value
+        });
+        appendFeed(`Committed ${value} to ${selectedSensor}.`);
+        input.value = "";
+        await Promise.all([loadChart(), loadAnalytics()]);
+      } catch (error) {
+        handleUiError(error, "Write failed");
+      }
+    }
+
+    async function simulateSelected() {
+      try {
+        if (!selectedSensor) return;
+        await fetchJson(`/api/sensor/${selectedSensor}/simulate?count=6`, { method: "POST" });
+        appendFeed(`Injected simulated signal burst into ${selectedSensor}.`);
+        await Promise.all([loadChart(), loadAnalytics(), loadIncidents(), loadHealth()]);
+      } catch (error) {
+        handleUiError(error, "Simulation failed");
+      }
+    }
+
+    async function exportCurrent() {
+      try {
+        if (!selectedSensor) return;
+        const result = await fetchJson(`/api/export/${selectedSensor}`, { method: "POST" });
+        appendFeed(`Prepared ${result.records} records for ${selectedSensor} export.`);
+      } catch (error) {
+        handleUiError(error, "Export failed");
+      }
+    }
+
+    function recommendationFromIncident(incident) {
+      if (!incident) return "No recommendation available yet.";
+      return incident.recommended_action || incident.title || "No recommendation available yet.";
+    }
+
+    function currentTopIncident() {
+      return incidentsCache.find(item => item.status !== "resolved") || incidentsCache[0] || null;
+    }
+
+    function demoSensorFromIncident(incident) {
+      const machine = incident?.machine_id ? incident.machine_id.split(",")[0] : "";
+      if (!machine) return selectedSensor;
+      const incidentType = incident.incident_type || "";
+      if (incidentType.includes("vibration")) return `${machine}-vibration`;
+      return `${machine}-temp`;
+    }
+
+    function updateHeroRecommendation() {
+      const topIncident = currentTopIncident();
+      document.getElementById("heroRecommendation").textContent = recommendationFromIncident(topIncident);
+      document.getElementById("heroRecommendationHash").textContent =
+        topIncident ? topIncident.id : "Awaiting replay payload";
+    }
+
+    function resetCopilotPane(message) {
+      document.getElementById("copilotPane").innerHTML = `<div class="empty">${escapeHtml(message)}</div>`;
+      document.getElementById("copilotStatusBadge").textContent = "standby";
+    }
+
+    function renderCopilotStatus(status) {
+      copilotStatusCache = status;
+      document.getElementById("copilotProvider").textContent = status.provider || "embedded";
+      document.getElementById("copilotStatusCopy").textContent =
+        `Modes: ${(status.modes || []).join(", ")}. Approval model: ${(status.approval_model || {}).current_release || "read-only"}.`;
+    }
+
+    function renderCopilotResponse(response) {
+      document.getElementById("copilotStatusBadge").textContent = response.mode || "ready";
+      document.getElementById("copilotPane").innerHTML = `
+        <div class="copilot-output">
+          <div class="copilot-meta">
+            <span class="chip ok">${escapeHtml(response.provider || "embedded")}</span>
+            <span class="chip">${escapeHtml(response.prompt_version || "prompt")}</span>
+            <span class="chip warn">confidence ${(Number(response.confidence || 0) * 100).toFixed(0)}%</span>
+          </div>
+          <h4 class="copilot-headline">${escapeHtml(response.headline || "Incident copilot response")}</h4>
+          <p class="copilot-answer">${escapeHtml(response.answer || "No answer generated.")}</p>
+          <div class="detail-paragraph"><strong>Guardrail:</strong> ${escapeHtml(response.guardrail || "Read-only")}</div>
+          <div class="copilot-citations">
+            ${(response.citations || []).map(item => `
+              <div class="copilot-citation">
+                <strong>${escapeHtml(item.label || "Evidence")}</strong>
+                <div>${escapeHtml(item.detail || "")}</div>
+              </div>
+            `).join("")}
+          </div>
+          <div class="copilot-meta">
+            ${(response.tools_used || []).map(tool => `<span class="chip">${escapeHtml(tool)}</span>`).join("")}
+          </div>
+          <div class="copilot-meta">
+            ${(response.follow_ups || []).map(item => `<span class="chip">${escapeHtml(item)}</span>`).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderCopilotEntries(entries) {
+      if (!entries || !entries.length) {
+        return '<div class="empty">No copilot answers logged yet.</div>';
+      }
+      return `
+        <div class="copilot-log">
+          ${entries.slice().reverse().map(entry => `
+            <div class="action-entry">
+              <div class="mono">${escapeHtml(entry.mode || "copilot")} · ${escapeHtml(formatDate(entry.created_at))}</div>
+              <div><strong>${escapeHtml(entry.headline || "Read-only answer")}</strong></div>
+              <div>${escapeHtml(entry.answer || "No answer stored.")}</div>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    async function loadCopilotStatus() {
+      const status = await fetchJson("/api/copilot/status");
+      renderCopilotStatus(status);
+    }
+
+    async function loadIncidents() {
+      const incidents = await fetchJson("/api/incidents");
+      incidentsCache = incidents;
+      updateHeroRecommendation();
+      const list = document.getElementById("incidentList");
+
+      if (!incidents.length) {
+        list.innerHTML = `<div class="empty">No incidents detected yet.</div>`;
+        return;
+      }
+
+      list.innerHTML = incidents.map(incident => `
+        <button class="incident-card ${incident.id === selectedIncident ? "active" : ""}" type="button" onclick="selectIncident('${incident.id}')">
+          <div class="topbar" style="margin-bottom: 10px;">
+            <div>
+              <div class="incident-title">${escapeHtml(incident.title || incident.incident_type || incident.id)}</div>
+              <div class="incident-meta">${escapeHtml(incident.machine_id || "multi-line")} · ${escapeHtml(incident.status)} · ${escapeHtml(formatDate(incident.opened_at))}</div>
+            </div>
+            <span class="severity ${severityClass(incident.severity)}">${escapeHtml(incident.severity || "unknown")}</span>
+          </div>
+          <div class="incident-reason">${escapeHtml(incident.suspected_cause || incident.recommended_action || "No reasoning recorded.")}</div>
+          <div class="chip-row">
+            <span class="chip">${escapeHtml(incident.incident_type || "incident")}</span>
+            <span class="chip ${incident.status === "resolved" ? "ok" : "warn"}">${escapeHtml(incident.status)}</span>
+            <span class="chip ok">${escapeHtml(incident.recommended_action || "review action")}</span>
+          </div>
+        </button>
+      `).join("");
+
+      const selectedStillExists = incidents.some(incident => incident.id === selectedIncident);
+      if (!selectedStillExists && incidents.length) {
+        await selectIncident(incidents[0].id);
+      }
+    }
+
+    async function runDetection() {
+      try {
+        renderDemoState("detect", "Running the live detector against the current telemetry chain.");
+        const result = await fetchJson("/api/demo/detect", { method: "POST" });
+        await Promise.all([loadIncidents(), loadHealth()]);
+        appendFeed(`Detector processed ${result.events_processed} events and created ${result.created_incidents.length} incidents.`);
+        return result;
+      } catch (error) {
+        handleUiError(error, "Detector run failed");
+        throw error;
+      }
+    }
+
+    async function openTopIncident() {
+      try {
+        if (!incidentsCache.length) {
+          await loadIncidents();
+        }
+        const topIncident = currentTopIncident();
+        if (!topIncident) {
+          appendFeed("No incidents available to inspect.");
+          return;
+        }
+        renderDemoState("inspect", `Opened ${topIncident.title || topIncident.id} to review evidence and recommendation.`);
+        await selectIncident(topIncident.id);
+      } catch (error) {
+        handleUiError(error, "Opening top incident failed");
+      }
+    }
+
+    async function runGuidedDemo() {
+      if (demoBusy) return;
+      demoBusy = true;
+      renderDemoState("detect", "Refreshing the detector, then walking the highest-priority incident from signal to action.");
+
+      try {
+        const focusSensor = demoSensorFromIncident(currentTopIncident());
+        if (focusSensor) {
+          await selectSensor(focusSensor);
+          setTimeRange("1h");
+          appendFeed(`Guided demo focused on ${focusSensor}.`);
+        }
+
+        await sleep(180);
+        await runDetection();
+        await sleep(180);
+        await openTopIncident();
+        await sleep(180);
+
+        renderDemoState("verify", "Pulling the replay payload and Merkle verification into the audit pane.");
+        await verifyIntegrity();
+
+        const noteField = document.getElementById("actionNote");
+        if (noteField) {
+          noteField.value = "Guided demo: maintenance dispatched after replay and operator context review.";
+        }
+        const actorField = document.getElementById("takenBy");
+        if (actorField) {
+          actorField.value = "Demo_Operator";
+        }
+
+        await sleep(180);
+        renderDemoState("act", "Recording the operator response to close the product loop.");
+        await takeAction("assign_maintenance");
+        renderDemoState("act", "Walkthrough complete. The incident now carries a replay-backed operator response.");
+      } catch (error) {
+        handleUiError(error, "Guided demo failed");
+      } finally {
+        demoBusy = false;
+        const badge = document.getElementById("demoStateBadge");
+        if (badge) {
+          badge.textContent = "ready";
+        }
+      }
+    }
+
+    function renderActionEntries(actions) {
+      if (!actions || !actions.length) {
+        return `<div class="empty">No operator actions recorded.</div>`;
+      }
+      return actions.map(action => `
+        <div class="action-entry">
+          <div class="mono">${escapeHtml(action.action_type || "action")} · ${escapeHtml(action.taken_by || "unknown")} · ${escapeHtml(formatDate(action.taken_at))}</div>
+          <div>${escapeHtml(action.action_note || "No action note provided.")}</div>
+        </div>
+      `).join("");
+    }
+
+    function renderTicketEntries(tickets) {
+      if (!tickets || !tickets.length) {
+        return `<div class="empty">No linked maintenance tickets.</div>`;
+      }
+      return tickets.map(ticket => `
+        <div class="action-entry">
+          <div class="mono">${escapeHtml(ticket.ticket_type || "ticket")} · ${escapeHtml(ticket.status)} · ${escapeHtml(formatDate(ticket.opened_at))}</div>
+          <div>${escapeHtml(ticket.description || "No description provided.")}</div>
+        </div>
+      `).join("");
+    }
+
+    function renderDetail(detail) {
+      const incident = detail.incident;
+      document.getElementById("detailState").textContent = incident.status || "active";
+      document.getElementById("detailPane").innerHTML = `
+        <div class="tagline">${escapeHtml(incident.incident_type || "incident")} / ${escapeHtml(incident.status || "open")}</div>
+        <div class="detail-title">${escapeHtml(incident.title || incident.id)}</div>
+        <p class="detail-paragraph">${escapeHtml(incident.suspected_cause || "No suspected cause recorded.")}</p>
+        <p class="detail-paragraph"><strong>Recommended action:</strong> ${escapeHtml(incident.recommended_action || "No recommendation recorded.")}</p>
+        <div class="chip-row">
+          <span class="chip">${escapeHtml(incident.machine_id || "multi-machine")}</span>
+          <span class="chip ${severityClass(incident.severity)}">${escapeHtml(incident.severity || "unknown")}</span>
+          <span class="chip">${escapeHtml(formatDate(incident.opened_at))}</span>
+        </div>
+        <div class="detail-note">
+          <textarea id="actionNote" data-api-control placeholder="Operator note">Mechanic dispatched and issue isolated.</textarea>
+          <input id="takenBy" data-api-control placeholder="Taken by" value="Operator_1" />
+        </div>
+        <div class="detail-actions">
+          <button class="btn" data-api-control type="button" onclick="takeAction('acknowledge')">acknowledge</button>
+          <button class="btn btn-warn" data-api-control type="button" onclick="takeAction('assign_maintenance')">assign_maintenance</button>
+          <button class="btn" data-api-control type="button" onclick="takeAction('reroute')">reroute</button>
+          <button class="btn" data-api-control type="button" onclick="takeAction('override')">override</button>
+          <button class="btn btn-danger" data-api-control type="button" onclick="takeAction('resolve')">resolve</button>
+          <button class="btn btn-success" data-api-control type="button" onclick="verifyIntegrity()">verify integrity</button>
+        </div>
+        <div class="detail-section">
+          <h4>Operator Actions</h4>
+          ${renderActionEntries(detail.actions)}
+        </div>
+        <div class="detail-section">
+          <h4>Maintenance Context</h4>
+          ${renderTicketEntries(detail.maintenance_tickets)}
+        </div>
+      `;
+    }
+
+    function renderTimelineEvents(events) {
+      if (!events || !events.length) {
+        return `<div class="empty">No replay timeline available yet.</div>`;
+      }
+      return events.slice(0, 8).map(event => `
+        <div class="timeline-event">
+          <div class="mono">${escapeHtml(event.sensor_id || event.machine_id || "signal")} · ${escapeHtml(String(event.value ?? ""))} · ${escapeHtml(String(event.source_type || "source"))}</div>
+          <div>${escapeHtml(formatDate(event.timestamp_ns ? Number(event.timestamp_ns) / 1000000 : null))}</div>
+        </div>
+      `).join("");
+    }
+
+    function renderReplay(replay) {
+      document.getElementById("verificationBadge").textContent =
+        replay.verification && replay.verification.includes("Valid") ? "verified" : "review";
+      document.getElementById("heroRecommendationHash").textContent = replay.merkle_root || "Awaiting replay payload";
+      document.getElementById("replayPane").innerHTML = `
+        <div class="verified">
+          <div>
+            <div style="font-weight: 800; font-size: 18px; letter-spacing: -0.02em;">${escapeHtml(replay.verification || "Verification pending")}</div>
+            <div class="muted" style="margin-top: 4px;">Replay payload is bound to the recorded Merkle root.</div>
+            <span class="hash">${escapeHtml(replay.merkle_root || "No Merkle root recorded.")}</span>
+          </div>
+          <div style="font-size: 34px;">✓</div>
+        </div>
+        <div class="mini-panel">
+          <div class="topbar">
+            <h3>Rule Replay</h3>
+            <div class="seg">${(replay.rules_fired || []).map(rule => `<span class="active">${escapeHtml(rule)}</span>`).join("") || "<span>none</span>"}</div>
+          </div>
+          <div class="detail-paragraph">${escapeHtml(replay.reasoning || "No reasoning recorded.")}</div>
+        </div>
+        <div class="mini-panel">
+          <div class="topbar">
+            <h3>Timeline</h3>
+            <div class="seg"><span>${escapeHtml(String((replay.timeline || []).length))} events</span></div>
+          </div>
+          <div class="timeline-list">${renderTimelineEvents(replay.timeline || [])}</div>
+        </div>
+        <div class="mini-panel">
+          <div class="topbar">
+            <h3>Operator Ledger</h3>
+            <div class="seg"><span>${escapeHtml(String((replay.operator_actions || []).length))} actions</span></div>
+          </div>
+          ${(replay.operator_actions || []).length ? renderActionEntries(replay.operator_actions) : '<div class="empty">No operator actions in replay yet.</div>'}
+        </div>
+        <div class="mini-panel">
+          <div class="topbar">
+            <h3>Copilot Log</h3>
+            <div class="seg"><span>${escapeHtml(String((replay.copilot_entries || []).length))} answers</span></div>
+          </div>
+          ${renderCopilotEntries(replay.copilot_entries || [])}
+        </div>
+        <div class="code-box">${escapeHtml(JSON.stringify(replay.proof || [], null, 2))}</div>
+      `;
+    }
+
+    async function loadReplay(id) {
+      const replay = await fetchJson(`/api/incidents/${id}/replay`);
+      renderReplay(replay);
+    }
+
+    async function selectIncident(id) {
+      try {
+        selectedIncident = id;
+        document.getElementById("chromeUrl").textContent = `vigil://ops/incidents/${id}`;
+        await loadIncidents();
+        const detail = await fetchJson(`/api/incidents/${id}`);
+        renderDetail(detail);
+        await loadReplay(id);
+        resetCopilotPane(`Ask the copilot to summarize or explain ${detail.incident.title || detail.incident.id}.`);
+      } catch (error) {
+        handleUiError(error, "Incident load failed");
+      }
+    }
+
+    async function runCopilot(mode) {
+      try {
+        if (!selectedIncident) {
+          appendFeed("Select an incident before using the copilot.");
+          return;
+        }
+
+        document.getElementById("copilotStatusBadge").textContent = "working";
+        document.getElementById("copilotPane").innerHTML = '<div class="empty">Generating read-only answer from incident, replay, and telemetry context.</div>';
+
+        const question = document.getElementById("copilotQuestion")?.value?.trim() || "";
+        const requestedBy = document.getElementById("copilotRequestedBy")?.value?.trim() || "Supervisor_1";
+        const response = await fetchJson(`/api/incidents/${selectedIncident}/copilot`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode,
+            question: mode === "ask" ? question : null,
+            requested_by: requestedBy
+          })
+        });
+
+        renderCopilotResponse(response);
+        appendFeed(`Copilot ${mode} generated for ${selectedIncident}.`);
+        await loadReplay(selectedIncident);
+      } catch (error) {
+        resetCopilotPane("Copilot request failed. Check backend availability and try again.");
+        handleUiError(error, "Copilot request failed");
+      }
+    }
+
+    async function takeAction(actionType) {
+      try {
+        if (!selectedIncident) return;
+        const note = document.getElementById("actionNote")?.value || "No note provided.";
+        const takenBy = document.getElementById("takenBy")?.value || "Operator_1";
+
+        const response = await fetchJson(`/api/incidents/${selectedIncident}/actions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action_type: actionType,
+            note,
+            taken_by: takenBy
+          })
+        });
+
+        appendFeed(`Action ${actionType} recorded for ${selectedIncident}.`);
+        await Promise.all([loadIncidents(), loadHealth()]);
+        if (response.detail) {
+          renderDetail(response.detail);
+        }
+        await loadReplay(selectedIncident);
+      } catch (error) {
+        handleUiError(error, `Action ${actionType} failed`);
+      }
+    }
+
+    async function verifyIntegrity() {
+      try {
+        if (!selectedIncident) return;
+        const replay = await fetchJson(`/api/incidents/${selectedIncident}/replay`);
+        renderReplay(replay);
+        appendFeed(replay.verification || "Verification completed.");
+      } catch (error) {
+        handleUiError(error, "Verification failed");
+      }
+    }
+
+    function initSocket() {
+      const protocol = location.protocol === "https:" ? "wss" : "ws";
+      const socket = new WebSocket(`${protocol}://${location.host}/ws`);
+      socket.onopen = () => {
+        setBackendState(true);
+      };
+      socket.onclose = () => {
+        setBackendState(false, "Live WebSocket disconnected. Refresh after the daemon is back.");
+      };
+      socket.onmessage = async event => {
+        const message = JSON.parse(event.data);
+        if (message.type === "new_data") {
+          appendFeed(`Telemetry update on ${message.sensor}.`);
+          if (message.sensor === selectedSensor) {
+            await Promise.all([loadChart(), loadAnalytics()]);
+          }
+        }
+        if (message.type === "incident_update") {
+          appendFeed(`Incident ${message.incident_id} updated via ${message.action}.`);
+          await Promise.all([loadIncidents(), loadHealth()]);
+          if (selectedIncident === message.incident_id) {
+            await selectIncident(selectedIncident);
+          }
+        }
+        if (message.type === "incident_reordered") {
+          appendFeed(`Incident ${message.incident_id} reordered by ${message.changed_by}.`);
+          await loadIncidents();
+        }
+        if (message.type === "pipeline_run") {
+          appendFeed(`Pipeline processed ${message.events_processed} events and created ${message.created_incidents} incidents.`);
+          await Promise.all([loadIncidents(), loadHealth()]);
+        }
+        if (message.type === "copilot_update") {
+          appendFeed(`Copilot ${message.mode} logged for ${message.incident_id}.`);
+          if (selectedIncident === message.incident_id) {
+            await loadReplay(selectedIncident);
+          }
+        }
+      };
+    }
+
+    async function boot() {
+      setTimeRange("24h");
+      setBackendState(false, "Waiting for backend handshake...");
+      renderDemoState("detect", "Run the detector, open the hottest incident, then walk the full loop from signal inspection to replay-backed operator action.");
+      initSocket();
+      appendFeed("Vigil interface initialized.");
+      resetCopilotPane("Select an incident, then ask for a summary, explanation, handoff, or custom answer.");
+      await Promise.all([loadStatus(), loadHealth(), loadTopology(), refreshSensors(), loadIncidents(), loadCopilotStatus()]);
+    }
+
+    // Drag-and-Drop Queue Functions
+    let draggedIncident = null;
+    let draggedFromLane = null;
+
+    function normalizeQueueStatus(status) {
+      if (status === "acknowledged" || status === "assigned" || status === "resolved") {
+        return status;
+      }
+      return "open";
+    }
+
+    function sortedLaneIncidents(incidents) {
+      return [...incidents].sort((a, b) => {
+        const rankDelta = (a.rank || 999) - (b.rank || 999);
+        if (rankDelta !== 0) {
+          return rankDelta;
+        }
+        return new Date(b.opened_at || 0).getTime() - new Date(a.opened_at || 0).getTime();
+      });
+    }
+
+    function cloneIncidentState() {
+      return incidentsCache.map(incident => ({ ...incident }));
+    }
+
+    function renderQueueFromCache() {
+      const lanes = {
+        open: [],
+        acknowledged: [],
+        assigned: [],
+        resolved: []
+      };
+
+      incidentsCache.forEach(incident => {
+        lanes[normalizeQueueStatus(incident.status)].push(incident);
+      });
+
+      Object.entries(lanes).forEach(([status, laneIncidents]) => {
+        const laneEl = document.getElementById(`lane-${status}`);
+        const countEl = document.getElementById(`count-${status}`);
+        const sorted = sortedLaneIncidents(laneIncidents);
+
+        if (laneEl) {
+          if (!sorted.length) {
+            laneEl.innerHTML = `
+              <div class="empty-lane">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <path d="M3 9h18M9 21V9"/>
+                </svg>
+                <div>No incidents</div>
+              </div>
+            `;
+          } else {
+            laneEl.innerHTML = sorted.map((incident, idx) => renderQueueItem(incident, idx + 1)).join("");
+          }
+        }
+
+        if (countEl) {
+          countEl.textContent = String(sorted.length);
+        }
+      });
+    }
+
+    function computeDropRank(event, targetLane) {
+      if (!targetLane) return 1;
+
+      const visibleItems = Array.from(targetLane.querySelectorAll(".queue-item"))
+        .filter(item => item.dataset.id !== draggedIncident);
+      const hoveredItem = event.target.closest(".queue-item");
+
+      if (!hoveredItem || hoveredItem.dataset.id === draggedIncident) {
+        return visibleItems.length + 1;
+      }
+
+      const hoveredIndex = visibleItems.findIndex(item => item.dataset.id === hoveredItem.dataset.id);
+      if (hoveredIndex === -1) {
+        return visibleItems.length + 1;
+      }
+
+      const bounds = hoveredItem.getBoundingClientRect();
+      const insertBefore = event.clientY < bounds.top + bounds.height / 2;
+      return hoveredIndex + (insertBefore ? 1 : 2);
+    }
+
+    function applyOptimisticQueueMove(incidentId, targetStatus, targetRank) {
+      const lanes = {
+        open: [],
+        acknowledged: [],
+        assigned: [],
+        resolved: []
+      };
+
+      const nextIncidents = cloneIncidentState();
+      nextIncidents.forEach(incident => {
+        lanes[normalizeQueueStatus(incident.status)].push(incident);
+      });
+
+      const sourceStatus = Object.keys(lanes).find(status =>
+        lanes[status].some(incident => incident.id === incidentId)
+      );
+      if (!sourceStatus) return;
+
+      const sourceLane = sortedLaneIncidents(lanes[sourceStatus]);
+      const incidentIndex = sourceLane.findIndex(incident => incident.id === incidentId);
+      if (incidentIndex === -1) return;
+
+      const [movingIncident] = sourceLane.splice(incidentIndex, 1);
+      const destinationStatus = targetStatus || sourceStatus;
+      const destinationLane = sourceStatus === destinationStatus
+        ? sourceLane
+        : sortedLaneIncidents(lanes[destinationStatus]);
+      const insertAt = Math.max(0, Math.min(targetRank - 1, destinationLane.length));
+
+      if (sourceStatus !== destinationStatus) {
+        movingIncident.status = destinationStatus;
+      }
+
+      destinationLane.splice(insertAt, 0, movingIncident);
+
+      sourceLane.forEach((incident, index) => {
+        incident.rank = index + 1;
+      });
+      destinationLane.forEach((incident, index) => {
+        incident.rank = index + 1;
+      });
+
+      lanes[sourceStatus] = sourceLane;
+      lanes[destinationStatus] = destinationLane;
+      incidentsCache = Object.values(lanes).flat();
+    }
+
+    function showToast(message, type = 'success') {
+      let toast = document.getElementById('queueToast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'queueToast';
+        toast.className = 'toast';
+        toast.innerHTML = `
+          <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 6L9 17l-5-5"/>
+          </svg>
+          <span id="toastMessage"></span>
+        `;
+        document.body.appendChild(toast);
+      }
+      const icon = toast.querySelector('.toast-icon');
+      icon.innerHTML = type === 'success' 
+        ? '<path d="M20 6L9 17l-5-5"/>'
+        : '<path d="M18 6L6 18M6 6l12 12"/>';
+      toast.className = `toast ${type}`;
+      document.getElementById('toastMessage').textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    async function loadQueueIncidents() {
+      renderQueueFromCache();
+    }
+
+    function renderQueueItem(incident, rank) {
+      const severity = incident.severity || 'medium';
+      const severityClass = severity === 'critical' ? 'critical' : severity === 'high' ? 'high' : 'medium';
+      return `
+        <div class="queue-item"
+             data-id="${escapeHtml(incident.id)}"
+             data-status="${escapeHtml(normalizeQueueStatus(incident.status))}"
+             data-rank="${rank}"
+             onclick="selectIncidentFromQueue('${escapeHtml(incident.id)}')">
+          <div class="item-handle"
+               draggable="true"
+               ondragstart="handleDragStart(event)"
+               ondragend="handleDragEnd(event)"
+               title="Drag to reorder">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <div class="item-rank">${rank}</div>
+          <div class="item-header">
+            <div class="item-title">${escapeHtml(incident.title || incident.incident_type || incident.id.slice(0, 8))}</div>
+          </div>
+          <div class="item-meta">
+            <span class="item-machine">${escapeHtml(incident.machine_id || 'multi')}</span>
+            <span class="item-severity ${severityClass}">${escapeHtml(severity)}</span>
+            <span class="item-type">${escapeHtml(incident.incident_type || 'incident')}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function handleDragStart(event) {
+      const item = event.target.closest('.queue-item');
+      if (!item) return;
+
+      event.stopPropagation();
+      draggedIncident = item.dataset.id;
+      draggedFromLane = item.closest('.queue-lane')?.dataset.status;
+
+      item.classList.add('dragging');
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', draggedIncident);
+      try {
+        event.dataTransfer.setDragImage(item, 24, 24);
+      } catch (error) {
+        void error;
+      }
+
+      // Add ghost effect after a short delay
+      setTimeout(() => {
+        if (item.classList.contains('dragging')) {
+          item.classList.add('drag-ghost');
+        }
+      }, 50);
+    }
+
+    function handleDragEnd(event) {
+      const item = event.target.closest('.queue-item');
+      if (item) {
+        item.classList.remove('dragging', 'drag-ghost');
+      }
+      
+      // Remove all drag-over states
+      document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+      document.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
+      
+      draggedIncident = null;
+      draggedFromLane = null;
+    }
+
+    function handleDragOver(event) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      
+      const lane = event.target.closest('.queue-lane');
+      if (lane && !lane.classList.contains('drag-over')) {
+        document.querySelectorAll('.queue-lane').forEach(l => l.classList.remove('drag-over'));
+        lane.classList.add('drag-over');
+      }
+      
+      const item = event.target.closest('.queue-item');
+      document.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
+      if (item && item !== document.querySelector('.dragging')) {
+        item.classList.add('drop-target');
+      }
+    }
+
+    function handleDragLeave(event) {
+      const lane = event.target.closest('.queue-lane');
+      if (lane && !lane.contains(event.relatedTarget)) {
+        lane.classList.remove('drag-over');
+      }
+      
+      const item = event.target.closest('.queue-item');
+      if (item) {
+        item.classList.remove('drop-target');
+      }
+    }
+
+    async function handleDrop(event, targetStatus) {
+      event.preventDefault();
+
+      const lane = event.target.closest('.queue-lane');
+      if (lane) {
+        lane.classList.remove('drag-over');
+      }
+
+      document.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
+
+      if (!draggedIncident) return;
+
+      const targetLane = event.target.closest('.queue-lane');
+      const newRank = computeDropRank(event, targetLane);
+      const changedBy = document.getElementById('takenBy')?.value || 'Operator_1';
+      const previousIncidents = cloneIncidentState();
+      const laneChanged = targetStatus !== draggedFromLane;
+      applyOptimisticQueueMove(draggedIncident, targetStatus, newRank);
+      loadQueueIncidents();
+
+      try {
+        await fetchJson('/api/incidents/reorder', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            incident_id: draggedIncident,
+            new_rank: newRank,
+            new_status: targetStatus !== draggedFromLane ? targetStatus : null,
+            changed_by: changedBy
+          })
+        });
+
+        showToast(laneChanged ? `Incident moved to ${targetStatus}` : `Priority updated in ${targetStatus}`, 'success');
+        await loadIncidents();
+        if (selectedIncident === draggedIncident) {
+          await selectIncident(selectedIncident);
+        }
+      } catch (error) {
+        incidentsCache = previousIncidents;
+        loadQueueIncidents();
+        showToast(`Failed to reorder: ${error.message}`, 'error');
+      }
+    }
+
+    async function selectIncidentFromQueue(id) {
+      await selectIncident(id);
+    }
+
+    // Override loadIncidents to also update queue
+    const originalLoadIncidents = loadIncidents;
+    loadIncidents = async function() {
+      await originalLoadIncidents();
+      await loadQueueIncidents();
+    };
+
+    window.addEventListener("unhandledrejection", event => {
+      event.preventDefault();
+      handleUiError(event.reason, "Unhandled async error");
+    });
+
+    boot().catch(error => {
+      setBackendState(false, error.message);
+      appendFeed(error.message);
+    });
+  </script>
+</body>
+</html>

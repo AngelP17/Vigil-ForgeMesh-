@@ -1,0 +1,15 @@
+[package]
+name = "vigil-web"
+version = "0.2.0"
+edition = "2021"
+
+[dependencies]
+vigil-core = { path = "../vigil-core" }
+axum = { workspace = true, features = ["ws"] }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+tower-http = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }

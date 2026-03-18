@@ -1,0 +1,21 @@
+[package]
+name = "vigil-cli"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "vigil-cli"
+path = "src/main.rs"
+
+[dependencies]
+vigil-core = { path = "../vigil-core" }
+vigil-sync = { path = "../vigil-sync" }
+vigil-p2p = { path = "../vigil-p2p" }
+vigil-web = { path = "../vigil-web" }
+tokio = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+indicatif = { workspace = true }
+axum = { workspace = true }

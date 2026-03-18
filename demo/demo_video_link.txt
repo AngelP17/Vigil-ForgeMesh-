@@ -1,0 +1,10 @@
+# Demo Video
+Record a local demo video and update this file with the final share link.
+## Suggested Recording Steps
+1. Start the daemon: cargo run -p vigil-cli -- daemon --port 8080
+2. Open browser to http://localhost:8080
+3. Walk through demo/demo_script.md steps
+4. Use OBS or similar to capture screen
+5. Upload to YouTube/Vimeo and paste link below
+---
+Link: https://your-video-url-here

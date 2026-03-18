@@ -1,293 +1,157 @@
-# ForgeMesh
+# Vigil
 
-**The Zero-Cost, Distributed Industrial Historian**
+**Operational Incident Intelligence Platform**
+
+Evolved from ForgeMesh distributed industrial historian into a closed-loop decision system with explainable incidents, operator actions, and Merkle-DAG-backed replay.
 
 [![Rust](https://img.shields.io/badge/Rust-1.75+-orange.svg)](https://rust-lang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Production%20Ready-green.svg)]()
+[![CI](https://github.com/AngelP17/vigil/actions/workflows/ci.yml/badge.svg)](https://github.com/AngelP17/vigil/actions)
 
-ForgeMesh is a production-grade, distributed time-series database designed for industrial manufacturing environments. It replaces expensive cloud IoT platforms (Azure IoT, AWS Greengrass) with a zero-cost, masterless, peer-to-peer architecture that runs on Raspberry Pi hardware.
+## Problem
 
-## Real-World Context
+Shift supervisors lose time hunting across siloed machine logs, maintenance records, and operator notes. Raw anomalies are not enough. Teams need explainable incidents, recommended actions, and trustworthy replay of why a system made a decision.
 
-**Built for:** Manufacturing facilities with unreliable WAN connectivity (multi-site operations across).
+## Solution
 
-**The Problem:** When VPN tunnels drop between plants, traditional cloud historians lose data. SCADA systems go blind. Production reports become incomplete.
+Vigil ingests noisy multi-source manufacturing data, detects explainable incidents, recommends next actions, records operator decisions, and preserves Merkle-DAG-backed replay for integrity and trust.
 
-**The Solution:** ForgeMesh uses "Local-First" architecture with CRDT (Conflict-free Replicated Data Types) consistency. Data is immutable, cryptographically verifiable (Merkle-DAG), and syncs automatically when connectivity returns. No central server. No cloud bill. No data loss.
+## Workflow
+
+`Ingest → Detect → Explain → Recommend → Act → Replay`
+
+## Why This Matters in High-Stakes Operations
+
+- local-first operation for degraded or partitioned industrial networks
+- human-in-the-loop action handling instead of black-box anomaly dashboards
+- replayable incident reasoning with Merkle-backed integrity verification
+- production-minded persistence split: Sled for telemetry, SQLite for operational workflow state
+
+## Key Features
+
+- Three v1 incident patterns: `temp_spike`, `vibration_anomaly`, `multi_machine_cascade`
+- Three data sources: machine logs, maintenance tickets, operator notes
+- Three operator actions: acknowledge, assign maintenance, reroute, override, resolve
+- Incidents list, incident detail, and replay/audit surfaces in the Axum dashboard
+- Read-first incident copilot for summary, explanation, handoff, and bounded Q&A
+- Local demo seeding with nulls, duplicates, delays, out-of-order events, and conflicting notes
 
 ## Architecture
 
 ```mermaid
-flowchart TB
-    subgraph ForgeMeshNode["🔧 FORGEMESH NODE"]
-        direction TB
-        subgraph AppLayer["Application Layer"]
-            direction LR
-            WebUI["🌐 Axum Web UI<br/>Real-time Dashboard"]
-            MerkleDAG["🔗 Merkle DAG<br/>Storage (SHA3-256)"]
-            IrohP2P["📡 Iroh P2P<br/>QUIC/Noise + GossipSub"]
-        end
-        
-        subgraph StorageLayer["Storage Layer"]
-            Sled["💾 Sled LSM-Tree (Embedded)<br/>Zero-config, ACID-compliant storage"]
-        end
-        
-        WebUI --> Sled
-        MerkleDAG --> Sled
-        IrohP2P --> Sled
-    end
-    
-    subgraph SisterNodes["🏭 SISTER NODES"]
-        Ontario["Ontario Plant"]
-        Georgia["Georgia Plant"]
-        Texas["Texas Plant"]
-    end
-    
-    ForgeMeshNode <-->|"P2P Sync<br/>Automatic Partition Healing"| SisterNodes
-    
-    style ForgeMeshNode fill:#1a1a2e,stroke:#16213e,color:#eee
-    style AppLayer fill:#0f3460,stroke:#16213e,color:#fff
-    style StorageLayer fill:#0f3460,stroke:#16213e,color:#fff
-    style SisterNodes fill:#1a1a2e,stroke:#16213e,color:#eee
+flowchart LR
+    PLC[Machine PLC Logs] --> Detect[Vigil Incident Loop]
+    Tickets[Maintenance Tickets] --> Detect
+    Notes[Operator Notes] --> Detect
+    Detect --> SQLite[(SQLite Incident Store)]
+    Detect --> Replay[Merkle Replay + Proof]
+    Detect --> UI[Axum Dashboard + WebSocket]
+    Sled[(Sled Merkle DAG)] --> Detect
 ```
 
-### Design Principles
+Telemetry remains in the ForgeMesh substrate:
 
-1. **Zero-Cost Infrastructure**: Runs on existing hardware (Pi 4, old laptops). No AWS/Azure bills.
-2. **Cryptographic Integrity**: Every data point content-addressed with SHA3-256. Tamper-evident audit trails for compliance.
-3. **Offline-First**: Write operations succeed locally even with 100% network partition. Sync happens asynchronously.
-4. **Staff+ Engineering**: Demonstrates distributed systems competency (CRDTs, Merkle trees, epidemic gossip) without microservice complexity.
+- Sled-backed immutable telemetry chains
+- Merkle verification for tamper evidence
+- Axum + WebSocket dashboard
+- local-first CLI and demo workflow
+
+Vigil adds:
+
+- incident persistence and status transitions
+- operator action recording
+- decision audit log with reasoning snapshots
+- health endpoint and incident/replay APIs
 
 ## Quick Start
 
-### Installation
+```bash
+cargo build
+
+# Seed noisy data and create incidents
+cargo run -p vigil-cli -- seed-demo
+cargo run -p vigil-cli -- detect
+
+# Launch Vigil
+cargo run -p vigil-cli -- daemon --port 8080
+```
+
+Open `http://localhost:8080`.
+
+Useful commands:
 
 ```bash
-# Clone and build (Rust 1.75+ required)
-cd forgemesh
-cargo build --release
+# Verify telemetry chain integrity
+cargo run -p vigil-cli -- verify -s ontario-line1-temp
 
-# Or use Just (modern make)
-just build
+# Export sample data again
+./scripts/seed_demo_data.sh
+
+# Run the full local demo flow
+./scripts/run_demo_flow.sh
 ```
 
-### Phase 1: Immutable Storage Engine
-```bash
-# Write sensor data
-./target/release/forgemesh-cli write -s ontario-line1-temp -v 24.5
-./target/release/forgemesh-cli write -s ontario-line1-temp -v 25.0
+## API
 
-# Verify cryptographic chain integrity
-./target/release/forgemesh-cli verify -s ontario-line1-temp
-# Verified 2 nodes, root 0x9664aff88a978605...
-
-# Run 100k write benchmark
-just bench  # Validates Phase 1 performance
+```text
+GET  /api/incidents
+GET  /api/incidents/:id
+POST /api/incidents/:id/copilot
+GET  /api/incidents/:id/replay
+POST /api/incidents/:id/actions
+GET  /api/health
+GET  /api/copilot/status
+GET  /api/sensors
+GET  /api/sensor/:id/history
+GET  /api/sensor/:id/analytics
 ```
 
-### Phase 2: Industrial Simulation & Analytics
-```bash
-# Generate 30 days of simulated temperature data (1 point/minute)
-./target/release/forgemesh-cli generate -s furnace-01 -p 43200 --sensor-type temperature
+## Integrity and Replay
 
-# Simulate complete production line with multiple sensors
-./target/release/forgemesh-cli simulate-line -l "ontario-line1"
+Each incident stores:
+
+- timeline snapshot
+- rule fired
+- reasoning text
+- Merkle root
+- operator action history
+
+Replay responses include the verification string:
+
+```text
+Valid Merkle path - data untampered
 ```
 
-### Phase 3: Air-Gap Sync (Sneakernet Mode)
-```bash
-# Export to CAR file (Content Addressable Archive)
-./target/release/forgemesh-cli export -o backup.car
-# CAR format is IPLD-compatible (IPFS/Filecoin standard)
+Copilot responses are also written into replay as read-only audit entries.
 
-# Transport via USB/email to offline node
-./target/release/forgemesh-cli import -f backup.car
-# Idempotent: importing twice changes nothing
-```
+## Read-First Copilot
 
-### Phase 4: Web Dashboard & Distributed Mesh
-```bash
-# Start daemon with web UI
-just daemon  # Starts on http://localhost:8080
+The copilot is intentionally narrow:
 
-# Or manually:
-./target/release/forgemesh-cli daemon --port 8080 --node-id ontario-pi-01
-```
+- summarizes the incident
+- explains why the incident fired
+- prepares a shift handoff note
+- answers bounded read-only questions grounded in incident, replay, health, and telemetry context
 
-Access the dashboard at `http://localhost:8080` to see:
-- Real-time time-series charts (Chart.js)
-- Merkle DAG visualization (blockchain-style audit trail)
-- Network topology (mesh node status)
-- Live WebSocket updates when data is written
+It does not execute actions or change state. The implementation details and 30-day rollout are documented in [docs/vigil-agent.md](/Users/apinzon/Desktop/Active%20Projects/ForgeMesh/docs/vigil-agent.md).
 
-### API Endpoints
-```bash
-# Core Data Endpoints
-GET  /api/sensors                 # List all sensors
-GET  /api/sensor/:id/history      # Get sensor history
-POST /api/sensor/:id/write        # Write new value
-GET  /api/status                  # Node status
+## Demo Assets
 
-# Analytics & Simulation
-GET  /api/sensor/:id/analytics    # Real-time statistics (min/max/mean/variance)
-POST /api/sensor/:id/simulate     # Generate simulated data points
-GET  /api/line/:id/oee            # Manufacturing OEE metrics
-GET  /api/mesh/topology           # Mesh network topology
-POST /api/export/:id              # Export sensor to CAR format
-```
+- script: [demo/demo_script.md](/Users/apinzon/Desktop/Active%20Projects/ForgeMesh/demo/demo_script.md)
+- scenario: [demo/demo_scenario.md](/Users/apinzon/Desktop/Active%20Projects/ForgeMesh/demo/demo_scenario.md)
+- screenshots directory: [demo/screenshots/README.md](/Users/apinzon/Desktop/Active%20Projects/ForgeMesh/demo/screenshots/README.md)
 
-## Performance Benchmarks
+### Screenshots
 
-| Metric | Value | Hardware |
-|--------|-------|----------|
-| Write Throughput | 15,000+ ops/sec | MacBook Pro M1 |
-| Write Throughput | 3,200 ops/sec | Raspberry Pi 4 |
-| Binary Size | <15 MB (stripped) | ARM64 |
-| RAM Usage | <50 MB | Idle |
-| Latency (p99) | <2 ms | Local SSD |
+![Incident list and dashboard](demo/screenshots/incident-list.png)
+![Incident detail and replay](demo/screenshots/incident-detail.png)
+![Replay and operator workflow](demo/screenshots/replay-view.png)
+![Health card](demo/screenshots/health-card.png)
 
-## Technical Validation
+## Why Vigil Fits High-Stakes Ops Roles
 
-###  "Demo" Script
-Run this to prove all four architectural phases work:
-
-```bash
-# Terminal 1: Start daemon
-just daemon &
-
-# Terminal 2: Demonstrate capabilities
-just sample        # Phase 1: Write & verify chain
-just export-test   # Phase 2: CAR file export/import
-curl http://localhost:8080/api/status  # Phase 3: HTTP API
-
-# Phase 4: Simulation & Analytics
-./target/release/forgemesh-cli simulate-line -l "demo-line"
-curl http://localhost:8080/api/sensor/demo-line-temp/analytics
-```
-
-### Test Results
-```
-✅ 10 tests passed in forgemesh-core
-   - simulation::tests::test_temperature_range
-   - simulation::tests::test_vibration_drift
-   - simulation::tests::test_batch_generation
-   - analytics::tests::test_stats_calculation
-   - analytics::tests::test_anomaly_detection
-   - analytics::tests::test_oee_calculation
-   - types::tests::test_hash_determinism
-   - types::tests::test_parent_chain
-   - store::tests::test_put_get
-   - merkle::tests::test_verify_chain
-```
-
-## Project Structure
-
-```
-forgemesh/
-+-- crates/
-|   +-- forgemesh-core/        # Phase 1: Merkle-DAG storage engine
-|   |   +-- src/store.rs       # Sled LSM abstraction
-|   |   +-- src/merkle.rs      # Hash chain verification
-|   |   +-- src/types.rs       # DataNode (immutable, hashed)
-|   |   +-- src/simulation.rs  # Industrial sensor simulation (temp/pressure/vibration)
-|   |   +-- src/analytics.rs   # Edge analytics (stats, anomaly detection, OEE)
-|   |
-|   +-- forgemesh-sync/        # Phase 2: CAR export/import, delta sync
-|   |   +-- src/car.rs         # IPLD CAR format implementation
-|   |   +-- src/delta.rs       # Merkle tree diff calculation
-|   |
-|   +-- forgemesh-p2p/         # Phase 3: Iroh networking, CRDTs
-|   |   +-- src/crdt.rs        # Vector clocks, LWW registers
-|   |   +-- src/gossip.rs      # Epidemic broadcast protocol
-|   |
-|   +-- forgemesh-web/         # Axum web server + dashboard
-|   |   +-- src/lib.rs         # Core routes + WebSocket
-|   |   +-- src/api.rs         # Analytics/simulation API endpoints
-|   |
-|   +-- forgemesh-cli/         # Binary target
-|       +-- src/main.rs        # CLI + daemon entry points
-|       +-- src/bulk_ops.rs    # Bulk data generation with progress bars
-|
-+-- Justfile                   # Build automation
-+-- Cargo.toml                 # Workspace manifest
-+-- EXTENSIONS.md              # Feature roadmap & implementation status
-```
-
-## Configuration
-
-No YAML/JSON config files. All configuration via CLI flags:
-
-```bash
-forgemesh-cli daemon \
-  --db-path /data/forgemesh \
-  --node-id ontario-line1 \
-  --port 8080
-```
-
-Environment variables for production:
-```bash
-FORGEMESH_LOG_LEVEL=info
-FORGEMESH_P2P_BOOTSTRAP=/dns4/bootstrap.forgemesh.local/tcp/8777
-```
-
-## Manufacturing Integration
-
-### Protocol Support
-- **Modbus TCP**: Read PLCs directly (via `modbus` crate integration)
-- **MQTT**: Bridge existing IoT sensors
-- **OPC UA**: Industrial automation standard (planned)
-
-### SCADA Integration
-REST API endpoints compatible with:
-- Ignition SCADA (HTTP bindings)
-- Grafana (JSON datasource plugin)
-- Node-RED (HTTP request nodes)
-
-Example curl for SCADA:
-```bash
-curl http://localhost:8080/api/sensor/line1-temp/history?limit=1
-# Returns latest value for HMI display
-```
-
-## Why This Matters
-
-**Traditional Industrial IoT Stack:**
-- Azure IoT Hub: ~$1,000/month per site
-- VPN infrastructure: $500/month
-- Data loss during outages: Incalculable
-- **Total: $18,000/year for 3 sites**
-
-**ForgeMesh:**
-- Hardware: 3x Raspberry Pi 4 ($150 total, one-time)
-- Networking: P2P over existing LAN/internet (free)
-- Data durability: 100% (local-first + sync)
-- **Total: $0/year**
-
-**Plus:** You own your data. No cloud lock-in. Works during internet outages. Cryptographic audit trails for FDA/ISO compliance.
-
-## Roadmap
-
-- [x] Phase 1: Immutable storage with Merkle verification
-- [x] Phase 2: CAR file export/import (air-gap sync)
-- [x] Phase 3: Web dashboard with real-time charts
-- [x] Phase 4: Industrial simulation & edge analytics (10 tests passing)
-- [ ] Phase 4.5: Full Iroh P2P mesh networking
-- [ ] Phase 5: Modbus/OPC UA protocol adapters
-- [ ] Phase 6: Federated querying across mesh nodes
-
-See [EXTENSIONS.md](EXTENSIONS.md) for detailed feature roadmap.
-
-## License
-
-MIT - See LICENSE file.
-
-## Author
-
-**Angel L. Pinzon**
-Systems Engineer | Industrial IoT | Rust
-[LinkedIn](https://linkedin.com/in/angel-l-pinzon) | [GitHub](https://github.com/angelpinzon)
-
----
-
-**Built for manufacturing engineers who need reliability, not cloud bills.**
+- end-to-end ownership of an operational incident workflow
+- explainable decision support under messy, conflicting data
+- human-in-the-loop actions with status transitions and audit history
+- cryptographic auditability and replay surfaced directly in product UX
+- modular Rust backend design with clear storage, API, and workflow boundaries
