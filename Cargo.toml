@@ -23,14 +23,13 @@ indicatif = "0.17"
 byteorder = "1.5"
 tempfile = "3.8"
 axum = "0.7"
-tower = "0.4"
 tower-http = { version = "0.5", features = ["fs", "cors"] }
 crdts = "7.3"
 iroh = "0.28"
 iroh-gossip = "0.28"
-quinn = "0.10"
 futures = "0.3"
 bytes = "1.5"
+bcrypt = "0.15"
 
 [profile.release]
 opt-level = 3

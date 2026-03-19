@@ -2,7 +2,7 @@
 
 ## 🚀 TL;DR
 
-Your **Vigil** landing page is now **fully integrated** with the backend and you have a **production-ready dashboard**. Both pages share the same distinctive aesthetic and are properly wired to all API endpoints with real-time WebSocket updates.
+Your **Vigil** landing page and **dashboard** are integrated with the backend: REST APIs used by the UI match the Axum routes, and **WebSocket** pushes server events that refresh the incident list, health, and (when applicable) the open incident detail—see [INTEGRATION_SUMMARY.md](INTEGRATION_SUMMARY.md). Both pages share the same distinctive aesthetic.
 
 ---
 
@@ -21,8 +21,7 @@ Your **Vigil** landing page is now **fully integrated** with the backend and you
 
 | File | Changes |
 |------|---------|
-| `crates/vigil-web/src/lib.rs` | Added routes for landing + dashboard |
-| `landing.html` | Backed up to `landing.html.backup` |
+| `crates/vigil-web/src/lib.rs` | Routes for landing (`/`) + dashboard (`/dashboard`), APIs as listed below |
 
 ---
 
@@ -42,11 +41,11 @@ Your **Vigil** landing page is now **fully integrated** with the backend and you
 - ✅ **Real-time incident list** with severity/status badges
 - ✅ **System health card** with 5 live metrics
 - ✅ **Incident detail view** with complete information
-- ✅ **5 operator actions** (acknowledge, assign, reroute, override, resolve)
+- ✅ **5 operator actions** (acknowledge, assign maintenance, reroute, override, resolve)
 - ✅ **Action history timeline** showing all interventions
 - ✅ **Read-first copilot** (summary, explain, handoff, Q&A)
 - ✅ **Replay & audit trail** with Merkle verification
-- ✅ **WebSocket live updates** for real-time notifications
+- ✅ **WebSocket live updates** (detection, actions, telemetry, reorder, copilot sync per INTEGRATION_SUMMARY)
 - ✅ **Status filters** (open, acknowledged, assigned, resolved)
 - ✅ **Mobile responsive** sidebar + content layout
 
@@ -163,13 +162,14 @@ cargo run -p vigil-cli -- daemon --port 8080
 - ✅ Demo the complete workflow end-to-end
 - ✅ Deploy to production (it's ready!)
 
-### Future Enhancements (Optional)
-- 🔲 Add user authentication
-- 🔲 Add dark/light theme toggle
-- 🔲 Add advanced visualizations (Chart.js, D3)
-- 🔲 Add export functionality (PDF, CSV)
-- 🔲 Add notification system (email, Slack)
-- 🔲 Add multi-tenant support
+### Also shipped (see [EXTENSIONS.md](EXTENSIONS.md))
+- Local operator auth, optional `VIGIL_REQUIRE_AUTH`, default user `operator`/`vigil`
+- Dark/light theme (landing + dashboard), CSV/JSON export, printable HTML report, mailto helper, Chart.js sensor trends on the dashboard
+- Slack webhook for critical incidents, browser notifications + alert tone on detection
+- Incident filters (query API + dashboard), `tenant_id` + SLA ack fields
+- CLI `create-user` for additional operators
+
+**Still roadmap-only:** D3 Merkle tree viz (list + proof + PDF summary shipped), live p2p gossip in UI, hosted SSO, full policy engine beyond `VIGIL_ENFORCE_TENANT_SCOPE`.
 
 ---
 

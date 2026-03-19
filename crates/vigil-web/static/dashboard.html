@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -14,6 +15,10 @@
   --cyan:#5eead4;--cyan-glow:rgba(94,234,212,.35);
   --violet:#a78bfa;--green:#34d399;--amber:#fbbf24;--red:#f87171;
   --text:#f1f5f9;--muted:#94a3b8;--dim:#475569;
+}
+html[data-theme="light"]{
+  --bg:#f8fafc;--bg2:#f1f5f9;--card:#ffffff;--border:#e2e8f0;
+  --text:#0f172a;--muted:#475569;--dim:#64748b;
 }
 html{scroll-behavior:smooth}
 body{
@@ -221,6 +226,23 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:20px 0;
 .text-red{color:var(--red)}
 .mb-16{margin-bottom:16px}
 .mb-24{margin-bottom:24px}
+
+/* ─── SENSOR CHART (Chart.js) ─── */
+.chart-wrap{
+  position:relative;
+  width:100%;
+  height:min(420px,52vh);
+  min-height:280px;
+  margin-top:8px
+}
+.telemetry-toolbar{
+  display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px
+}
+.telemetry-toolbar select{
+  padding:10px 14px;border-radius:12px;
+  background:rgba(0,0,0,.2);border:1px solid var(--border);
+  color:var(--text);font-size:13px;font-family:'JetBrains Mono',monospace;max-width:100%
+}
 </style>
 </head>
 <body>
@@ -232,9 +254,15 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:20px 0;
       <svg viewBox="0 0 28 28" fill="none"><path d="M14 2L2 26L14 20L26 26L14 2Z" fill="#5eead4"/><path d="M14 2L14 20L2 26L14 2Z" fill="#2dd4bf"/></svg>
       Vigil
     </a>
-    <div class="nav-actions">
+    <div class="nav-actions" style="flex-wrap:wrap;gap:8px;align-items:center">
+      <input id="login-user" class="nav-btn" style="max-width:120px;padding:6px 10px" placeholder="user" title="Default: operator / vigil"/>
+      <input id="login-pass" type="password" class="nav-btn" style="max-width:120px;padding:6px 10px" placeholder="password"/>
+      <button type="button" class="nav-btn" onclick="doLogin()">Sign in</button>
+      <button type="button" class="nav-btn" onclick="doLogout()">Sign out</button>
+      <button type="button" class="nav-btn" onclick="toggleTheme()">Theme</button>
       <button class="nav-btn" onclick="window.location='/'">Landing</button>
       <button class="nav-btn primary" onclick="runDetection()">Run Detection</button>
+      <span id="session-badge" class="mono" style="font-size:11px;color:var(--muted);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="Session from GET /api/auth/me"></span>
     </div>
   </div>
 </nav>
@@ -245,14 +273,22 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:20px 0;
   <aside class="sidebar">
     <div class="sidebar-section">
       <div class="sidebar-label">Navigation</div>
-      <div class="sidebar-link active" onclick="showView('incidents')">
+      <div class="sidebar-link active" data-testid="nav-incidents" onclick="showView('incidents', this)">
         <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>
         <span>Incidents</span>
         <span class="sidebar-badge" id="incident-count">0</span>
       </div>
-      <div class="sidebar-link" onclick="showView('health')">
+      <div class="sidebar-link" data-testid="nav-health" onclick="showView('health', this)">
         <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"/></svg>
         <span>System Health</span>
+      </div>
+      <div class="sidebar-link" data-testid="nav-telemetry" onclick="showView('telemetry', this)">
+        <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v7.875c0 .621-.504 1.125-1.125 1.125h-2.25A1.125 1.125 0 013 21v-7.875zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+        <span>Sensor trends</span>
+      </div>
+      <div class="sidebar-link" data-testid="nav-mesh" onclick="showView('mesh', this)">
+        <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"/></svg>
+        <span>Mesh topology</span>
       </div>
     </div>
     <div class="sidebar-section">
@@ -308,6 +344,20 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:20px 0;
         </div>
       </div>
 
+      <div class="detail-section mb-24" style="padding:16px">
+        <div class="section-title" style="margin-bottom:12px">Filters</div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+          <input id="f-severity" class="action-input" style="min-height:40px;max-width:140px" placeholder="Severity"/>
+          <input id="f-machine" class="action-input" style="min-height:40px;max-width:160px" placeholder="Machine / line"/>
+          <input id="f-q" class="action-input" style="min-height:40px;min-width:200px" placeholder="Search title / id"/>
+          <input id="f-from" class="action-input" style="min-height:40px;max-width:160px" placeholder="From (RFC3339)"/>
+          <input id="f-to" class="action-input" style="min-height:40px;max-width:160px" placeholder="To (RFC3339)"/>
+          <button type="button" class="nav-btn primary" onclick="applyFilters()">Apply</button>
+          <button type="button" class="nav-btn" onclick="clearFilters()">Clear</button>
+          <a class="nav-btn" href="#" id="csv-link" onclick="exportCsv();return false">Export CSV</a>
+        </div>
+      </div>
+
       <div id="incident-list" class="incident-list">
         <div class="loading">Loading incidents</div>
       </div>
@@ -318,16 +368,151 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:20px 0;
       <div class="page-header">
         <div class="breadcrumb">vigil:// / <span>health</span></div>
         <h1 class="page-title">System Health</h1>
-        <p class="page-subtitle">Real-time monitoring and operational metrics</p>
+        <p class="page-subtitle">Real-time monitoring and operational metrics (same data as the incidents overview strip). <span style="color:var(--dim);font-size:13px">Zero-cost core: no paid API or cloud required for detection, incidents, or replay — optional integrations only.</span></p>
       </div>
-      <div id="health-content"></div>
+      <div id="health-content">
+        <div class="health-card mb-24">
+          <div class="health-grid">
+            <div class="health-metric">
+              <div class="health-value" id="hf-events">—</div>
+              <div class="health-label">Events/Hour</div>
+            </div>
+            <div class="health-metric">
+              <div class="health-value" id="hf-incidents">—</div>
+              <div class="health-label">Open Incidents</div>
+            </div>
+            <div class="health-metric">
+              <div class="health-value" id="hf-quality">—<span class="unit">%</span></div>
+              <div class="health-label">Data Quality</div>
+            </div>
+            <div class="health-metric">
+              <div class="health-value" id="hf-nodes">—</div>
+              <div class="health-label">Mesh Nodes</div>
+            </div>
+            <div class="health-metric">
+              <div class="health-value" id="hf-invalid">—</div>
+              <div class="health-label">Invalid Events</div>
+            </div>
+          </div>
+        </div>
+        <div class="detail-section mb-24">
+          <div class="section-title">
+            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3"/></svg>
+            Last ingest
+          </div>
+          <div class="detail-field-value mono" id="hf-last-ingest">—</div>
+        </div>
+        <div class="detail-section mb-24">
+          <div class="section-title">
+            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 14.25h13.5M5.25 9.75h13.5M4.5 5.25h15"/></svg>
+            API status (<code class="mono">GET /api/status</code>)
+          </div>
+          <pre id="status-json" class="mono" style="font-size:12px;background:rgba(0,0,0,.35);padding:16px;border-radius:12px;overflow:auto;max-height:280px;color:var(--muted)">Loading…</pre>
+        </div>
+        <div class="detail-section mb-24">
+          <div class="section-title">
+            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m0 0v-.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v.375m0 0H12m-.75 0h.008v.008H12V12z"/></svg>
+            Copilot profile (<code class="mono">GET /api/copilot/status</code>)
+          </div>
+          <pre id="copilot-status-json" class="mono" style="font-size:12px;background:rgba(0,0,0,.35);padding:16px;border-radius:12px;overflow:auto;max-height:320px;color:var(--muted)">Loading…</pre>
+        </div>
+        <div class="detail-section">
+          <div class="section-title">
+            Slack integration (<code class="mono">GET/PUT /api/integrations/slack</code> · <code class="mono">POST …/test</code>)
+          </div>
+          <p id="slack-status-line" class="mono" style="font-size:12px;color:var(--dim);margin-bottom:10px">Loading…</p>
+          <p style="font-size:12px;color:var(--dim);margin-bottom:10px">Saving persists to SQLite (<code class="mono">app_settings</code>). Env <code class="mono">VIGIL_SLACK_WEBHOOK_URL</code> overrides on daemon restart if set.</p>
+          <div class="telemetry-toolbar" style="flex-wrap:wrap;gap:8px;margin-bottom:8px">
+            <input id="slack-webhook-input" type="password" class="action-input" style="min-width:220px;flex:1;max-width:100%" placeholder="https://hooks.slack.com/services/…" autocomplete="off"/>
+            <button type="button" class="nav-btn primary" onclick="saveSlackWebhook()">Save webhook</button>
+            <button type="button" class="nav-btn" onclick="testSlackWebhook()">Send test</button>
+            <button type="button" class="nav-btn" onclick="clearSlackWebhook()">Clear webhook</button>
+          </div>
+          <pre id="slack-action-status" class="mono" style="font-size:11px;background:rgba(0,0,0,.25);padding:12px;border-radius:10px;color:var(--dim);min-height:1.5em">—</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- TELEMETRY / CHART VIEW -->
+    <div id="view-telemetry" class="hidden">
+      <div class="page-header">
+        <div class="breadcrumb">vigil:// / <span>telemetry</span></div>
+        <h1 class="page-title">Sensor trends</h1>
+        <p class="page-subtitle">Live series from <code class="mono">GET /api/sensor/:id/history</code> (Chart.js)</p>
+      </div>
+      <div class="detail-section mb-24">
+        <div class="section-title">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.147-2.147a1.5 1.5 0 012.122 0l2.909 2.909a1.5 1.5 0 010 2.122L18.75 18M2.25 18h13.5"/></svg>
+          History
+        </div>
+        <div class="telemetry-toolbar">
+          <label for="telemetry-sensor-select" style="font-size:13px;color:var(--muted)">Sensor</label>
+          <select id="telemetry-sensor-select" onchange="onTelemetrySensorChange()"></select>
+          <button type="button" class="nav-btn primary" onclick="loadSensorHistoryChart()">Refresh</button>
+          <span id="telemetry-dp-count" class="mono" style="font-size:12px;color:var(--dim)">—</span>
+        </div>
+        <p id="telemetry-chart-status" class="mono" style="font-size:12px;color:var(--muted);margin-bottom:8px"></p>
+        <div class="chart-wrap">
+          <canvas id="sensorHistoryChart" aria-label="Sensor value over time"></canvas>
+        </div>
+        <p style="font-size:12px;color:var(--dim);margin-top:12px">
+          Seed demo data (<code class="mono">cargo run -p vigil-cli -- seed-demo</code>) so Sled has points to plot. Theme toggle updates chart colors.
+        </p>
+      </div>
+
+      <div class="detail-section mb-24">
+        <div class="section-title">Analytics (<code class="mono">GET /api/sensor/:id/analytics</code>)</div>
+        <pre id="telemetry-analytics-json" class="mono" style="font-size:11px;background:rgba(0,0,0,.35);padding:16px;border-radius:12px;overflow:auto;max-height:220px;color:var(--muted)">—</pre>
+      </div>
+
+      <div class="detail-section mb-24">
+        <div class="section-title">Ingest &amp; export</div>
+        <p style="font-size:12px;color:var(--dim);margin-bottom:10px">Simulate and write require auth when <code class="mono">VIGIL_REQUIRE_AUTH=true</code>.</p>
+        <div class="telemetry-toolbar">
+          <button type="button" class="nav-btn primary" onclick="runSensorSimulate()">POST simulate</button>
+          <input id="telemetry-write-val" class="action-input" style="min-height:40px;max-width:100px" type="text" placeholder="value" inputmode="decimal"/>
+          <button type="button" class="nav-btn" onclick="writeSensorValue()">POST write</button>
+          <button type="button" class="nav-btn" onclick="postExportPreview()">POST export (JSON)</button>
+          <button type="button" class="nav-btn primary" onclick="downloadSensorCar()">GET CAR download</button>
+        </div>
+        <pre id="telemetry-action-status" class="mono" style="font-size:11px;margin-top:10px;background:rgba(0,0,0,.25);padding:12px;border-radius:10px;color:var(--dim);min-height:1.5em">—</pre>
+      </div>
+
+      <div class="detail-section mb-24">
+        <div class="section-title">Line OEE (<code class="mono">GET /api/line/:id/oee</code>)</div>
+        <div class="telemetry-toolbar">
+          <select id="oee-line-select" class="mono" style="padding:10px 12px;border-radius:12px;background:rgba(0,0,0,.2);border:1px solid var(--border);color:var(--text)">
+            <option value="ontario-line1">ontario-line1</option>
+            <option value="georgia-line2">georgia-line2</option>
+            <option value="texas-line3">texas-line3</option>
+          </select>
+          <button type="button" class="nav-btn primary" onclick="loadLineOee()">Load OEE</button>
+        </div>
+        <pre id="oee-json" class="mono" style="font-size:11px;background:rgba(0,0,0,.35);padding:16px;border-radius:12px;overflow:auto;max-height:200px;color:var(--muted)">—</pre>
+      </div>
+    </div>
+
+    <!-- MESH TOPOLOGY (live gossip peers + local node from vigil-p2p GossipEngine) -->
+    <div id="view-mesh" class="hidden">
+      <div class="page-header">
+        <div class="breadcrumb">vigil:// / <span>mesh</span></div>
+        <h1 class="page-title">Mesh topology</h1>
+        <p class="page-subtitle">Live snapshot from <code class="mono">GET /api/mesh/topology</code> — local node plus remote peers registered in the gossip engine (Iroh broadcast hooks in <code class="mono">vigil-p2p</code> populate peers when multi-node sync is enabled).</p>
+      </div>
+      <div class="detail-section mb-24">
+        <div class="section-title">Topology JSON</div>
+        <div class="telemetry-toolbar" style="margin-bottom:10px">
+          <button type="button" class="nav-btn primary" onclick="loadMeshTopology()">Refresh</button>
+        </div>
+        <pre id="mesh-topology-json" class="mono" style="font-size:12px;background:rgba(0,0,0,.35);padding:16px;border-radius:12px;overflow:auto;max-height:min(480px,60vh);color:var(--muted)">Loading…</pre>
+      </div>
     </div>
 
     <!-- INCIDENT DETAIL VIEW -->
     <div id="view-detail" class="hidden">
       <div class="page-header">
         <div class="breadcrumb">vigil:// / incidents / <span id="detail-breadcrumb">—</span></div>
-        <button class="nav-btn" onclick="showView('incidents')" style="margin-bottom:16px">← Back to Incidents</button>
+        <button class="nav-btn" onclick="showView('incidents', this)" style="margin-bottom:16px">← Back to Incidents</button>
         <h1 class="page-title" id="detail-title">Incident Detail</h1>
       </div>
       <div id="detail-content"></div>
@@ -340,6 +525,483 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:20px 0;
 let currentIncident = null;
 let allIncidents = [];
 let ws = null;
+let filterQuery = '';
+let sensorChart = null;
+let selectedSensorId = '';
+
+function vigToken() {
+  return sessionStorage.getItem('vigil_token') || '';
+}
+
+function apiFetch(url, opts = {}) {
+  const h = new Headers(opts.headers || {});
+  const t = vigToken();
+  if (t) h.set('Authorization', 'Bearer ' + t);
+  return fetch(url, { ...opts, headers: h });
+}
+
+async function doLogin() {
+  const u = document.getElementById('login-user')?.value || 'operator';
+  const p = document.getElementById('login-pass')?.value || '';
+  const res = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: u, password: p }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    alert('Login failed');
+    return;
+  }
+  sessionStorage.setItem('vigil_token', data.token);
+  alert('Signed in as ' + data.username);
+  refreshSessionBadge();
+  loadIncidents();
+  loadHealth();
+}
+
+function doLogout() {
+  const t = vigToken();
+  if (t) {
+    fetch('/api/auth/logout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: t }),
+    });
+  }
+  sessionStorage.removeItem('vigil_token');
+  refreshSessionBadge();
+}
+
+function toggleTheme() {
+  const d = document.documentElement;
+  const next = d.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+  d.setAttribute('data-theme', next);
+  localStorage.setItem('vigil_theme', next);
+  const tv = document.getElementById('view-telemetry');
+  if (tv && !tv.classList.contains('hidden')) {
+    loadSensorHistoryChart();
+  }
+}
+
+(function initTheme() {
+  const t = localStorage.getItem('vigil_theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+})();
+
+function buildFilterQuery() {
+  const p = new URLSearchParams();
+  const sev = document.getElementById('f-severity')?.value?.trim();
+  const mac = document.getElementById('f-machine')?.value?.trim();
+  const q = document.getElementById('f-q')?.value?.trim();
+  const fr = document.getElementById('f-from')?.value?.trim();
+  const to = document.getElementById('f-to')?.value?.trim();
+  if (sev) p.set('severity', sev);
+  if (mac) p.set('machine', mac);
+  if (q) p.set('q', q);
+  if (fr) p.set('from', fr);
+  if (to) p.set('to', to);
+  const qs = p.toString();
+  return qs ? '?' + qs : '';
+}
+
+function applyFilters() {
+  filterQuery = buildFilterQuery();
+  loadIncidents();
+}
+
+function clearFilters() {
+  ['f-severity','f-machine','f-q','f-from','f-to'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  filterQuery = '';
+  loadIncidents();
+}
+
+async function downloadIncidentJson(id) {
+  const res = await apiFetch('/api/incidents/' + id + '/export/json');
+  if (!res.ok) {
+    alert('Download failed');
+    return;
+  }
+  const blob = await res.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'incident-' + id + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function downloadIncidentPdf(id) {
+  const res = await apiFetch('/api/incidents/' + id + '/export/pdf');
+  if (!res.ok) {
+    alert('PDF download failed');
+    return;
+  }
+  const blob = await res.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'incident-' + id + '.pdf';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function refreshSessionBadge() {
+  const el = document.getElementById('session-badge');
+  if (!el) return;
+  const t = vigToken();
+  if (!t) {
+    el.textContent = '';
+    return;
+  }
+  try {
+    const res = await apiFetch('/api/auth/me');
+    if (!res.ok) {
+      el.textContent = '';
+      return;
+    }
+    const m = await res.json();
+    el.textContent = [m.username, m.role, m.tenant_id].filter(Boolean).join(' · ');
+  } catch {
+    el.textContent = '';
+  }
+}
+
+async function loadSensorAnalytics() {
+  const el = document.getElementById('telemetry-analytics-json');
+  if (!el) return;
+  if (!selectedSensorId) {
+    el.textContent = '—';
+    return;
+  }
+  try {
+    const res = await apiFetch(
+      '/api/sensor/' + encodeURIComponent(selectedSensorId) + '/analytics',
+    );
+    if (!res.ok) {
+      el.textContent = 'HTTP ' + res.status;
+      return;
+    }
+    const j = await res.json();
+    el.textContent = JSON.stringify(j, null, 2);
+  } catch (e) {
+    el.textContent = String(e);
+  }
+}
+
+async function runSensorSimulate() {
+  const st = document.getElementById('telemetry-action-status');
+  if (!selectedSensorId) {
+    if (st) st.textContent = 'Select a sensor first.';
+    return;
+  }
+  try {
+    const res = await apiFetch(
+      '/api/sensor/' + encodeURIComponent(selectedSensorId) + '/simulate?count=8',
+      { method: 'POST' },
+    );
+    const j = await res.json().catch(() => ({}));
+    if (st) {
+      st.textContent = res.ok
+        ? JSON.stringify(j, null, 2)
+        : 'HTTP ' + res.status + ' ' + JSON.stringify(j);
+    }
+    await loadSensorHistoryChart();
+  } catch (e) {
+    if (st) st.textContent = String(e);
+  }
+}
+
+async function writeSensorValue() {
+  const st = document.getElementById('telemetry-action-status');
+  const raw = document.getElementById('telemetry-write-val')?.value?.trim() || '0';
+  const val = parseFloat(raw);
+  if (!selectedSensorId) {
+    if (st) st.textContent = 'Select a sensor first.';
+    return;
+  }
+  try {
+    const res = await apiFetch(
+      '/api/sensor/' + encodeURIComponent(selectedSensorId) + '/write',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: String(val),
+      },
+    );
+    const j = await res.json().catch(() => ({}));
+    if (st) {
+      st.textContent = res.ok
+        ? JSON.stringify(j, null, 2)
+        : 'HTTP ' + res.status + ' ' + JSON.stringify(j);
+    }
+    await loadSensorHistoryChart();
+  } catch (e) {
+    if (st) st.textContent = String(e);
+  }
+}
+
+async function postExportPreview() {
+  const st = document.getElementById('telemetry-action-status');
+  if (!selectedSensorId) {
+    if (st) st.textContent = 'Select a sensor first.';
+    return;
+  }
+  try {
+    const res = await apiFetch('/api/export/' + encodeURIComponent(selectedSensorId), {
+      method: 'POST',
+    });
+    const j = await res.json().catch(() => ({}));
+    if (st) {
+      st.textContent = res.ok
+        ? JSON.stringify(j, null, 2)
+        : 'HTTP ' + res.status + ' ' + JSON.stringify(j);
+    }
+  } catch (e) {
+    if (st) st.textContent = String(e);
+  }
+}
+
+async function downloadSensorCar() {
+  const st = document.getElementById('telemetry-action-status');
+  if (!selectedSensorId) {
+    if (st) st.textContent = 'Select a sensor first.';
+    return;
+  }
+  try {
+    const res = await apiFetch('/api/export/' + encodeURIComponent(selectedSensorId) + '/car');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      if (st) st.textContent = 'HTTP ' + res.status + ' ' + JSON.stringify(err);
+      return;
+    }
+    const blob = await res.blob();
+    const safe = selectedSensorId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'sensor-' + safe + '.car';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    if (st) st.textContent = 'Downloaded sensor-' + safe + '.car (FORG CAR stream)';
+  } catch (e) {
+    if (st) st.textContent = String(e);
+  }
+}
+
+async function loadLineOee() {
+  const el = document.getElementById('oee-json');
+  const sel = document.getElementById('oee-line-select');
+  const line = sel?.value || 'ontario-line1';
+  if (!el) return;
+  try {
+    const res = await apiFetch('/api/line/' + encodeURIComponent(line) + '/oee');
+    if (!res.ok) {
+      el.textContent = 'HTTP ' + res.status;
+      return;
+    }
+    const j = await res.json();
+    el.textContent = JSON.stringify(j, null, 2);
+  } catch (e) {
+    el.textContent = String(e);
+  }
+}
+
+async function loadMeshTopology() {
+  const el = document.getElementById('mesh-topology-json');
+  if (!el) return;
+  try {
+    const res = await apiFetch('/api/mesh/topology');
+    if (!res.ok) {
+      el.textContent = 'Error ' + res.status;
+      return;
+    }
+    const j = await res.json();
+    el.textContent = JSON.stringify(j, null, 2);
+  } catch (e) {
+    el.textContent = String(e);
+  }
+}
+
+async function openIncidentMailto(id) {
+  const res = await apiFetch('/api/incidents/' + id + '/notify/mailto');
+  const data = await res.json();
+  if (data.mailto) window.location.href = data.mailto;
+}
+
+function playAlertTone() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.frequency.value = 880;
+    g.gain.value = 0.05;
+    o.start();
+    setTimeout(() => { o.stop(); ctx.close(); }, 120);
+  } catch (e) {}
+}
+
+async function exportCsv() {
+  const q = filterQuery || buildFilterQuery();
+  const res = await apiFetch('/api/incidents/export/csv' + q);
+  if (!res.ok) {
+    alert('Export failed');
+    return;
+  }
+  const blob = await res.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'vigil-incidents.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function getChartTheme() {
+  const light = document.documentElement.getAttribute('data-theme') === 'light';
+  return {
+    text: light ? '#0f172a' : '#e2e8f0',
+    grid: light ? 'rgba(15,23,42,0.08)' : 'rgba(226,232,240,0.08)',
+    line: light ? '#0d9488' : '#5eead4',
+    fill: light ? 'rgba(13,148,136,0.15)' : 'rgba(94,234,212,0.12)',
+  };
+}
+
+function onTelemetrySensorChange() {
+  const sel = document.getElementById('telemetry-sensor-select');
+  selectedSensorId = sel?.value || '';
+  loadSensorHistoryChart();
+}
+
+async function loadSensorList() {
+  const statusEl = document.getElementById('telemetry-chart-status');
+  try {
+    const res = await apiFetch('/api/sensors');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const sensors = await res.json();
+    const sel = document.getElementById('telemetry-sensor-select');
+    if (!sel) return;
+    const list = Array.isArray(sensors) ? sensors : [];
+    sel.innerHTML = list
+      .map((s) => {
+        const id = String(s);
+        const esc = id.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        return `<option value="${esc}">${esc}</option>`;
+      })
+      .join('');
+    if (list.length) {
+      if (!selectedSensorId || !list.includes(selectedSensorId)) {
+        selectedSensorId = list[0];
+      }
+      sel.value = selectedSensorId;
+    } else {
+      selectedSensorId = '';
+      if (statusEl) {
+        statusEl.textContent = 'No sensors returned. Run seed-demo and ingest.';
+      }
+    }
+  } catch (e) {
+    console.error(e);
+    if (statusEl) statusEl.textContent = 'Failed to load /api/sensors';
+  }
+}
+
+async function loadSensorHistoryChart() {
+  const statusEl = document.getElementById('telemetry-chart-status');
+  const countEl = document.getElementById('telemetry-dp-count');
+  const sel = document.getElementById('telemetry-sensor-select');
+  if (sel && sel.value) selectedSensorId = sel.value;
+
+  if (sensorChart) {
+    sensorChart.destroy();
+    sensorChart = null;
+  }
+
+  try {
+    if (!selectedSensorId) {
+      if (countEl) countEl.textContent = '0 datapoints';
+      if (statusEl) statusEl.textContent = 'Select a sensor or seed telemetry data.';
+      return;
+    }
+
+    if (typeof Chart === 'undefined') {
+      if (statusEl) statusEl.textContent = 'Chart.js did not load (check network / CDN).';
+      return;
+    }
+
+    const res = await apiFetch('/api/sensor/' + encodeURIComponent(selectedSensorId) + '/history');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const payload = await res.json();
+    const pts = payload.datapoints || [];
+    if (statusEl) statusEl.textContent = '';
+    if (countEl) countEl.textContent = pts.length + ' datapoints';
+
+    const ctx = document.getElementById('sensorHistoryChart');
+    if (!ctx) return;
+
+    if (pts.length === 0) {
+      if (statusEl) {
+        statusEl.textContent =
+          'No datapoints yet for this sensor. Run seed-demo or POST simulate/write.';
+      }
+      return;
+    }
+
+    const th = getChartTheme();
+    const labels = pts.map((p) => {
+      const d = new Date(p.x);
+      return d.toLocaleTimeString(undefined, {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+    });
+    const values = pts.map((p) => p.y);
+
+    sensorChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: selectedSensorId,
+            data: values,
+            borderColor: th.line,
+            backgroundColor: th.fill,
+            fill: true,
+            tension: 0.25,
+            pointRadius: pts.length > 120 ? 0 : 2,
+            pointHoverRadius: 4,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { intersect: false, mode: 'index' },
+        scales: {
+          x: {
+            ticks: { color: th.text, maxRotation: 0, maxTicksLimit: 14 },
+            grid: { color: th.grid },
+          },
+          y: {
+            ticks: { color: th.text },
+            grid: { color: th.grid },
+          },
+        },
+        plugins: {
+          legend: { labels: { color: th.text } },
+        },
+      },
+    });
+  } catch (e) {
+    console.error(e);
+    if (statusEl) statusEl.textContent = 'Failed to load history: ' + e.message;
+  } finally {
+    await loadSensorAnalytics();
+  }
+}
 
 // ═══ WEBSOCKET ═══
 function connectWebSocket() {
@@ -350,9 +1012,32 @@ function connectWebSocket() {
     try {
       const msg = JSON.parse(event.data);
       console.log('WS message:', msg);
-      if (msg.type === 'incident_update' || msg.type === 'pipeline_run') {
+      if (
+        msg.type === 'incident_update' ||
+        msg.type === 'pipeline_run' ||
+        msg.type === 'incident_reordered' ||
+        msg.type === 'new_data'
+      ) {
+        if (msg.type === 'pipeline_run' && Notification.permission === 'granted') {
+          new Notification('Vigil', { body: 'Detection run finished' });
+        }
+        if (msg.type === 'pipeline_run') playAlertTone();
         loadIncidents();
         loadHealth();
+        loadStatusAndCopilotPanels();
+        const tel = document.getElementById('view-telemetry');
+        if (tel && !tel.classList.contains('hidden')) {
+          loadSensorHistoryChart();
+        }
+      }
+      if (
+        msg.type === 'copilot_update' &&
+        currentIncident &&
+        msg.incident_id === currentIncident.incident.id
+      ) {
+        loadIncidentDetail(msg.incident_id);
+        loadHealth();
+        loadStatusAndCopilotPanels();
       }
     } catch (e) {
       console.error('WS parse error:', e);
@@ -368,40 +1053,171 @@ function connectWebSocket() {
 // ═══ API CALLS ═══
 async function loadIncidents() {
   try {
-    const res = await fetch('/api/incidents');
+    const res = await apiFetch('/api/incidents' + filterQuery);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const incidents = await res.json();
     allIncidents = incidents;
     renderIncidents(incidents);
     document.getElementById('incident-count').textContent = incidents.length;
 
-    const openIncidents = incidents.filter(i => i.status === 'open');
+    const openIncidents = incidents.filter(
+      i => String(i.status || '').toLowerCase() === 'open'
+    );
     document.getElementById('open-count').textContent = openIncidents.length;
   } catch (error) {
     console.error('Failed to load incidents:', error);
   }
 }
 
+function applyHealthPayload(health) {
+  const ev = health.events_last_hour ?? '0';
+  const inc = health.incidents_open ?? '0';
+  const qualityMatch = health.data_quality?.match(/(\d+)%/);
+  const qualityHtml = qualityMatch ? qualityMatch[1] + '<span class="unit">%</span>' : '—';
+  const nodes = health.mesh_nodes ?? '0';
+  const inv = health.invalid_events ?? '0';
+  const ingest = health.last_ingest ?? '—';
+
+  const hEv = document.getElementById('h-events');
+  const hInc = document.getElementById('h-incidents');
+  const hQ = document.getElementById('h-quality');
+  const hN = document.getElementById('h-nodes');
+  const hI = document.getElementById('h-invalid');
+  if (hEv) hEv.textContent = ev;
+  if (hInc) hInc.textContent = inc;
+  if (hQ) hQ.innerHTML = qualityHtml;
+  if (hN) hN.textContent = nodes;
+  if (hI) hI.textContent = inv;
+
+  const hfEv = document.getElementById('hf-events');
+  const hfInc = document.getElementById('hf-incidents');
+  const hfQ = document.getElementById('hf-quality');
+  const hfN = document.getElementById('hf-nodes');
+  const hfI = document.getElementById('hf-invalid');
+  const hfLi = document.getElementById('hf-last-ingest');
+  if (hfEv) hfEv.textContent = ev;
+  if (hfInc) hfInc.textContent = inc;
+  if (hfQ) hfQ.innerHTML = qualityHtml;
+  if (hfN) hfN.textContent = nodes;
+  if (hfI) hfI.textContent = inv;
+  if (hfLi) hfLi.textContent = ingest;
+}
+
 async function loadHealth() {
   try {
-    const res = await fetch('/api/health');
+    const res = await apiFetch('/api/health');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const health = await res.json();
-
-    document.getElementById('h-events').textContent = health.events_last_hour || '0';
-    document.getElementById('h-incidents').textContent = health.incidents_open || '0';
-
-    const qualityMatch = health.data_quality?.match(/(\d+)%/);
-    document.getElementById('h-quality').innerHTML = qualityMatch ? qualityMatch[1] + '<span class="unit">%</span>' : '—';
-
-    document.getElementById('h-nodes').textContent = health.mesh_nodes || '0';
-    document.getElementById('h-invalid').textContent = health.invalid_events || '0';
+    applyHealthPayload(health);
   } catch (error) {
     console.error('Failed to load health:', error);
   }
 }
 
+async function loadStatusAndCopilotPanels() {
+  try {
+    const [st, cp, sl] = await Promise.all([
+      apiFetch('/api/status'),
+      apiFetch('/api/copilot/status'),
+      apiFetch('/api/integrations/slack'),
+    ]);
+    const statusEl = document.getElementById('status-json');
+    const copilotEl = document.getElementById('copilot-status-json');
+    if (statusEl) {
+      statusEl.textContent = st.ok
+        ? JSON.stringify(await st.json(), null, 2)
+        : `Error ${st.status}`;
+    }
+    if (copilotEl) {
+      copilotEl.textContent = cp.ok
+        ? JSON.stringify(await cp.json(), null, 2)
+        : `Error ${cp.status}`;
+    }
+    const slackLine = document.getElementById('slack-status-line');
+    if (slackLine && sl.ok) {
+      const sj = await sl.json();
+      slackLine.textContent = sj.configured
+        ? 'Webhook configured' + (sj.masked_url ? ' · ' + sj.masked_url : '')
+        : 'No Slack webhook configured';
+    } else if (slackLine) {
+      slackLine.textContent = 'Could not load Slack status (' + sl.status + ')';
+    }
+  } catch (e) {
+    console.error('status/copilot panels:', e);
+  }
+}
+
+async function saveSlackWebhook() {
+  const st = document.getElementById('slack-action-status');
+  const raw = document.getElementById('slack-webhook-input')?.value?.trim() || '';
+  try {
+    const res = await apiFetch('/api/integrations/slack', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ webhook_url: raw || null }),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (st) {
+      st.textContent = res.ok
+        ? 'Saved. ' + JSON.stringify(j)
+        : 'HTTP ' + res.status + ' ' + JSON.stringify(j);
+    }
+    if (res.ok) {
+      const inp = document.getElementById('slack-webhook-input');
+      if (inp) inp.value = '';
+    }
+    loadStatusAndCopilotPanels();
+  } catch (e) {
+    if (st) st.textContent = String(e);
+  }
+}
+
+async function clearSlackWebhook() {
+  const st = document.getElementById('slack-action-status');
+  try {
+    const res = await apiFetch('/api/integrations/slack', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ webhook_url: null }),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (st) {
+      st.textContent = res.ok
+        ? 'Cleared. ' + JSON.stringify(j)
+        : 'HTTP ' + res.status + ' ' + JSON.stringify(j);
+    }
+    loadStatusAndCopilotPanels();
+  } catch (e) {
+    if (st) st.textContent = String(e);
+  }
+}
+
+async function testSlackWebhook() {
+  const st = document.getElementById('slack-action-status');
+  try {
+    const res = await apiFetch('/api/integrations/slack/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (st) {
+      st.textContent = res.ok
+        ? JSON.stringify(j, null, 2)
+        : 'HTTP ' + res.status + ' ' + JSON.stringify(j);
+    }
+  } catch (e) {
+    if (st) st.textContent = String(e);
+  }
+}
+
 async function loadIncidentDetail(id) {
   try {
-    const res = await fetch(`/api/incidents/${id}`);
+    const res = await apiFetch(`/api/incidents/${id}`);
+    if (!res.ok) {
+      console.error('Incident not found:', res.status);
+      return;
+    }
     const detail = await res.json();
     currentIncident = detail;
     renderIncidentDetail(detail);
@@ -412,10 +1228,16 @@ async function loadIncidentDetail(id) {
 
 async function runDetection() {
   try {
-    const res = await fetch('/api/detection/run', { method: 'POST' });
+    const res = await apiFetch('/api/detection/run', { method: 'POST' });
     const result = await res.json();
-    alert(`Detection complete!\nCreated incidents: ${result.created_incidents.length}\nEvents processed: ${result.events_processed}`);
+    if (!res.ok) {
+      alert(`Detection failed: ${result.error || JSON.stringify(result)}`);
+      return;
+    }
+    const created = Array.isArray(result.created_incidents) ? result.created_incidents.length : 0;
+    alert(`Detection complete!\nCreated incidents: ${created}\nEvents processed: ${result.events_processed ?? '—'}`);
     loadIncidents();
+    loadHealth();
   } catch (error) {
     console.error('Detection failed:', error);
     alert('Detection failed: ' + error.message);
@@ -424,7 +1246,7 @@ async function runDetection() {
 
 async function takeAction(incidentId, actionType, note) {
   try {
-    const res = await fetch(`/api/incidents/${incidentId}/actions`, {
+    const res = await apiFetch(`/api/incidents/${incidentId}/actions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -434,8 +1256,13 @@ async function takeAction(incidentId, actionType, note) {
       })
     });
     const result = await res.json();
+    if (!res.ok) {
+      alert(`Action failed: ${result.error || res.status}`);
+      return;
+    }
     loadIncidentDetail(incidentId);
     loadIncidents();
+    loadHealth();
   } catch (error) {
     console.error('Action failed:', error);
     alert('Action failed: ' + error.message);
@@ -444,7 +1271,7 @@ async function takeAction(incidentId, actionType, note) {
 
 async function runCopilot(incidentId, mode, question = null) {
   try {
-    const res = await fetch(`/api/incidents/${incidentId}/copilot`, {
+    const res = await apiFetch(`/api/incidents/${incidentId}/copilot`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -453,7 +1280,20 @@ async function runCopilot(incidentId, mode, question = null) {
         requested_by: 'Operator_1'
       })
     });
-    const response = await res.json();
+    let response;
+    try {
+      response = await res.json();
+    } catch {
+      return { error: `HTTP ${res.status}` };
+    }
+    if (!res.ok) {
+      return {
+        error:
+          response?.message ||
+          response?.error ||
+          (typeof response === 'string' ? response : `HTTP ${res.status}`),
+      };
+    }
     return response;
   } catch (error) {
     console.error('Copilot failed:', error);
@@ -463,7 +1303,7 @@ async function runCopilot(incidentId, mode, question = null) {
 
 async function loadReplay(incidentId) {
   try {
-    const res = await fetch(`/api/incidents/${incidentId}/replay`);
+    const res = await apiFetch(`/api/incidents/${incidentId}/replay`);
     return await res.json();
   } catch (error) {
     console.error('Replay load failed:', error);
@@ -574,6 +1414,16 @@ function renderIncidentDetail(detail) {
             <div class="detail-field-value">${formatDateTime(incident.opened_at)}</div>
           </div>
 
+          <div class="detail-field">
+            <div class="detail-field-label">Ack SLA target</div>
+            <div class="detail-field-value">${incident.sla_ack_by ? formatDateTime(incident.sla_ack_by) : '—'}</div>
+          </div>
+
+          <div class="detail-field">
+            <div class="detail-field-label">Tenant</div>
+            <div class="detail-field-value mono">${incident.tenant_id || 'default'}</div>
+          </div>
+
           ${incident.closed_at ? `
           <div class="detail-field">
             <div class="detail-field-label">Closed At</div>
@@ -632,6 +1482,16 @@ function renderIncidentDetail(detail) {
         </div>
         ` : ''}
 
+        <div class="detail-section">
+          <div class="section-title">Exports & notifications</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <button type="button" class="nav-btn" onclick="downloadIncidentJson('${incident.id}')">Download JSON</button>
+            <button type="button" class="nav-btn" onclick="downloadIncidentPdf('${incident.id}')">Download PDF</button>
+            <a class="nav-btn" href="/api/incidents/${incident.id}/report" target="_blank" rel="noopener">Printable report</a>
+            <button type="button" class="nav-btn" onclick="openIncidentMailto('${incident.id}')">Email draft</button>
+          </div>
+        </div>
+
         <!-- REPLAY BUTTON -->
         <div class="detail-section">
           <button class="action-btn primary" onclick="showReplay('${incident.id}')" style="width:100%">
@@ -655,7 +1515,7 @@ function renderIncidentDetail(detail) {
 
           <div class="action-buttons">
             <button class="action-btn" onclick="handleAction('acknowledge')">Acknowledge</button>
-            <button class="action-btn" onclick="handleAction('assign')">Assign Maintenance</button>
+            <button class="action-btn" onclick="handleAction('assign_maintenance')">Assign Maintenance</button>
             <button class="action-btn" onclick="handleAction('reroute')">Reroute</button>
             <button class="action-btn" onclick="handleAction('override')">Override</button>
             <button class="action-btn primary" onclick="handleAction('resolve')">Resolve</button>
@@ -672,10 +1532,10 @@ function renderIncidentDetail(detail) {
           </div>
 
           <div class="copilot-modes">
-            <button class="copilot-mode" onclick="handleCopilot('summary')">Summary</button>
-            <button class="copilot-mode" onclick="handleCopilot('explain')">Explain</button>
-            <button class="copilot-mode" onclick="handleCopilot('handoff')">Handoff</button>
-            <button class="copilot-mode" onclick="handleCopilot('qa')">Q&A</button>
+            <button type="button" class="copilot-mode" onclick="handleCopilot('summary', this)">Summary</button>
+            <button type="button" class="copilot-mode" onclick="handleCopilot('explain', this)">Explain</button>
+            <button type="button" class="copilot-mode" onclick="handleCopilot('handoff', this)">Handoff</button>
+            <button type="button" class="copilot-mode" onclick="handleCopilot('qa', this)">Q&A</button>
           </div>
 
           <div id="copilot-response" class="copilot-response copilot-response.loading">
@@ -779,12 +1639,26 @@ async function showReplay(incidentId) {
 }
 
 // ═══ ACTIONS ═══
-function showView(view) {
+function showView(view, anchorEl) {
   document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
   document.getElementById(`view-${view}`).classList.remove('hidden');
 
   document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
-  event?.target.closest('.sidebar-link')?.classList.add('active');
+  const from = anchorEl || (typeof event !== 'undefined' ? event?.target : null);
+  from?.closest?.('.sidebar-link')?.classList.add('active');
+
+  if (view === 'health') {
+    loadHealth();
+    loadStatusAndCopilotPanels();
+  }
+  if (view === 'telemetry') {
+    loadSensorList()
+      .then(() => loadSensorHistoryChart())
+      .then(() => loadLineOee());
+  }
+  if (view === 'mesh') {
+    loadMeshTopology();
+  }
 }
 
 function showIncidentDetail(id) {
@@ -793,7 +1667,10 @@ function showIncidentDetail(id) {
 }
 
 function filterByStatus(status) {
-  const filtered = allIncidents.filter(i => i.status === status);
+  const want = String(status).toLowerCase();
+  const filtered = allIncidents.filter(
+    i => String(i.status || '').toLowerCase() === want
+  );
   renderIncidents(filtered);
 }
 
@@ -802,14 +1679,14 @@ async function handleAction(actionType) {
   await takeAction(currentIncident.incident.id, actionType, note);
 }
 
-async function handleCopilot(mode) {
+async function handleCopilot(mode, btn) {
   const responseEl = document.getElementById('copilot-response');
   responseEl.className = 'copilot-response loading';
   responseEl.innerHTML = '<em>Thinking...</em>';
 
-  // Activate mode button
   document.querySelectorAll('.copilot-mode').forEach(el => el.classList.remove('active'));
-  event.target.classList.add('active');
+  const target = btn || (typeof event !== 'undefined' ? event?.target : null);
+  target?.classList?.add('active');
 
   let question = null;
   if (mode === 'qa') {
@@ -827,7 +1704,10 @@ async function handleCopilot(mode) {
   if (response.error) {
     responseEl.innerHTML = `<em style="color:var(--red)">Error: ${response.error}</em>`;
   } else {
-    responseEl.textContent = response.response || 'No response';
+    const text =
+      [response.headline, response.answer].filter(Boolean).join('\n\n') ||
+      'No response';
+    responseEl.textContent = text;
   }
 }
 
@@ -852,13 +1732,20 @@ function formatDateTime(timestamp) {
 
 // ═══ INIT ═══
 window.addEventListener('DOMContentLoaded', () => {
+  if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+    Notification.requestPermission().catch(() => {});
+  }
+  refreshSessionBadge();
   loadIncidents();
   loadHealth();
   connectWebSocket();
 
-  // Refresh data every 10 seconds
   setInterval(() => {
     loadHealth();
+    const healthView = document.getElementById('view-health');
+    if (healthView && !healthView.classList.contains('hidden')) {
+      loadStatusAndCopilotPanels();
+    }
   }, 10000);
 });
 </script>

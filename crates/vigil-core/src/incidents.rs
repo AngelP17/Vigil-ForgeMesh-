@@ -1,7 +1,7 @@
 use crate::models::{Incident, IncidentDetail, MaintenanceTicket, OperatorAction};
-use chrono::Utc;
+use chrono::{Duration, Utc};
 use serde::Deserialize;
-use sqlx::{Sqlite, SqlitePool, Transaction};
+use sqlx::{QueryBuilder, Sqlite, SqlitePool, Transaction};
 
 #[derive(Debug, Deserialize)]
 pub struct ReorderPayload {
@@ -10,6 +10,20 @@ pub struct ReorderPayload {
     pub new_status: Option<String>,
     pub changed_by: String,
 }
+
+/// Filters for [`list_incidents_filtered`].
+#[derive(Default, Clone, Debug)]
+pub struct IncidentFilters<'a> {
+    pub tenant_id: Option<&'a str>,
+    pub status: Option<&'a str>,
+    pub severity: Option<&'a str>,
+    pub machine: Option<&'a str>,
+    pub q: Option<&'a str>,
+    pub from_opened: Option<&'a str>,
+    pub to_opened: Option<&'a str>,
+}
+
+const INCIDENT_ROW: &str = "id, machine_id, incident_type, severity, status, title, suspected_cause, recommended_action, opened_at, closed_at, COALESCE(rank, 0) as rank, COALESCE(tenant_id, 'default') as tenant_id, sla_ack_by";
 
 fn clamp_insert_index(position: usize, len: usize) -> usize {
     position.clamp(1, len + 1) - 1
@@ -75,10 +89,22 @@ pub async fn create_incident(pool: &SqlitePool, incident: Incident) -> sqlx::Res
             .await?;
     let new_rank = max_rank.unwrap_or(0) + 1;
 
+    let tenant = incident
+        .tenant_id
+        .clone()
+        .unwrap_or_else(|| "default".to_string());
+    let sla_ack_by = incident.sla_ack_by.clone().or_else(|| {
+        incident.opened_at.as_ref().and_then(|s| {
+            chrono::DateTime::parse_from_rfc3339(s).ok().map(|dt| {
+                (dt.with_timezone(&Utc) + Duration::hours(4)).to_rfc3339()
+            })
+        })
+    });
+
     sqlx::query(
         "INSERT INTO incidents
-        (id, machine_id, incident_type, severity, status, title, suspected_cause, recommended_action, opened_at, closed_at, rank)
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        (id, machine_id, incident_type, severity, status, title, suspected_cause, recommended_action, opened_at, closed_at, rank, tenant_id, sla_ack_by)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
     )
     .bind(&id)
     .bind(&incident.machine_id)
@@ -91,6 +117,8 @@ pub async fn create_incident(pool: &SqlitePool, incident: Incident) -> sqlx::Res
     .bind(&incident.opened_at)
     .bind(&incident.closed_at)
     .bind(new_rank)
+    .bind(&tenant)
+    .bind(&sla_ack_by)
     .execute(pool)
     .await?;
 
@@ -98,32 +126,77 @@ pub async fn create_incident(pool: &SqlitePool, incident: Incident) -> sqlx::Res
 }
 
 pub async fn list_incidents(pool: &SqlitePool) -> sqlx::Result<Vec<Incident>> {
-    sqlx::query_as::<_, Incident>(
-        "SELECT id, machine_id, incident_type, severity, status, title, suspected_cause, recommended_action, opened_at, closed_at, COALESCE(rank, 0) as rank
-         FROM incidents ORDER BY COALESCE(rank, 0) ASC, datetime(opened_at) DESC",
-    )
+    sqlx::query_as::<_, Incident>(&format!(
+        "SELECT {INCIDENT_ROW} FROM incidents ORDER BY COALESCE(rank, 0) ASC, datetime(opened_at) DESC"
+    ))
     .fetch_all(pool)
     .await
+}
+
+pub async fn list_incidents_filtered(
+    pool: &SqlitePool,
+    f: &IncidentFilters<'_>,
+) -> sqlx::Result<Vec<Incident>> {
+    let mut b: QueryBuilder<Sqlite> = QueryBuilder::new(format!(
+        "SELECT {INCIDENT_ROW} FROM incidents WHERE 1=1 "
+    ));
+    if let Some(t) = f.tenant_id {
+        b.push("AND COALESCE(tenant_id, 'default') = ");
+        b.push_bind(t);
+    }
+    if let Some(s) = f.status {
+        b.push(" AND status = ");
+        b.push_bind(s);
+    }
+    if let Some(s) = f.severity {
+        b.push(" AND lower(COALESCE(severity,'')) = lower(");
+        b.push_bind(s);
+        b.push(")");
+    }
+    if let Some(m) = f.machine {
+        b.push(" AND COALESCE(machine_id,'') LIKE ");
+        b.push_bind(format!("%{m}%"));
+    }
+    if let Some(from) = f.from_opened {
+        b.push(" AND datetime(opened_at) >= datetime(");
+        b.push_bind(from);
+        b.push(")");
+    }
+    if let Some(to) = f.to_opened {
+        b.push(" AND datetime(opened_at) <= datetime(");
+        b.push_bind(to);
+        b.push(")");
+    }
+    if let Some(q) = f.q {
+        let like = format!("%{q}%");
+        b.push(" AND (IFNULL(title,'') LIKE ");
+        b.push_bind(like.clone());
+        b.push(" OR IFNULL(suspected_cause,'') LIKE ");
+        b.push_bind(like.clone());
+        b.push(" OR IFNULL(id,'') LIKE ");
+        b.push_bind(like);
+        b.push(")");
+    }
+    b.push(" ORDER BY COALESCE(rank, 0) ASC, datetime(opened_at) DESC");
+    b.build_query_as::<Incident>().fetch_all(pool).await
 }
 
 pub async fn list_incidents_by_status(
     pool: &SqlitePool,
     status: &str,
 ) -> sqlx::Result<Vec<Incident>> {
-    sqlx::query_as::<_, Incident>(
-        "SELECT id, machine_id, incident_type, severity, status, title, suspected_cause, recommended_action, opened_at, closed_at, COALESCE(rank, 0) as rank
-         FROM incidents WHERE status = ?1 ORDER BY COALESCE(rank, 0) ASC, datetime(opened_at) DESC",
-    )
+    sqlx::query_as::<_, Incident>(&format!(
+        "SELECT {INCIDENT_ROW} FROM incidents WHERE status = ?1 ORDER BY COALESCE(rank, 0) ASC, datetime(opened_at) DESC"
+    ))
     .bind(status)
     .fetch_all(pool)
     .await
 }
 
 pub async fn get_incident(pool: &SqlitePool, id: &str) -> sqlx::Result<Option<Incident>> {
-    sqlx::query_as::<_, Incident>(
-        "SELECT id, machine_id, incident_type, severity, status, title, suspected_cause, recommended_action, opened_at, closed_at, COALESCE(rank, 0) as rank
-         FROM incidents WHERE id = ?1",
-    )
+    sqlx::query_as::<_, Incident>(&format!(
+        "SELECT {INCIDENT_ROW} FROM incidents WHERE id = ?1"
+    ))
     .bind(id)
     .fetch_optional(pool)
     .await
@@ -264,15 +337,15 @@ pub async fn find_open_incident(
     machine_id: Option<&str>,
     incident_type: Option<&str>,
 ) -> sqlx::Result<Option<Incident>> {
-    sqlx::query_as::<_, Incident>(
-        "SELECT id, machine_id, incident_type, severity, status, title, suspected_cause, recommended_action, opened_at, closed_at, COALESCE(rank, 0) as rank
+    sqlx::query_as::<_, Incident>(&format!(
+        "SELECT {INCIDENT_ROW}
          FROM incidents
          WHERE status != 'resolved'
            AND machine_id IS ?1
            AND incident_type IS ?2
          ORDER BY COALESCE(rank, 0) ASC, datetime(opened_at) DESC
-         LIMIT 1",
-    )
+         LIMIT 1"
+    ))
     .bind(machine_id)
     .bind(incident_type)
     .fetch_optional(pool)

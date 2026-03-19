@@ -137,19 +137,24 @@ I've successfully integrated your redesigned landing page with the Vigil backend
 **✅ Replay & Audit Trail View**
 - Merkle root visualization
 - Proof path array display
-- Verification badge ("Valid Merkle path — data untampered")
+- Verification badge: displays the replay API `verification` field, character-for-character as in `crates/vigil-core/src/audit.rs` (`Valid Merkle path - data untampered`; ASCII hyphen-minus only, not en/em dashes)
 - Rules fired display
 - Reasoning text
 - Event timeline with timestamps
 - Proper integration with `/api/incidents/:id/replay`
 
+**✅ Sensor trends (Chart.js)**
+- Sidebar **Sensor trends** view
+- Sensor selector from `GET /api/sensors`
+- Line chart from `GET /api/sensor/:id/history` (Chart.js 4.x via CDN)
+- Dark/light theme matches dashboard CSS variables; chart reloads on theme toggle
+- While this view is visible, WebSocket `pipeline_run` / `new_data` (and related refresh events) reloads the series
+
 **✅ WebSocket Live Updates**
 - Auto-connect on page load
 - Reconnection logic
-- Real-time incident notifications
-- Pipeline run updates
-- Action updates
-- Copilot interaction logging
+- **Dashboard refresh**: on `incident_update`, `pipeline_run`, `incident_reordered`, or `new_data`, the UI reloads incidents, health, and (when the System Health view is open) `/api/status` + `/api/copilot/status` panels
+- **`copilot_update`**: reloads the open incident detail when it matches the current incident so replay/audit stays aligned after a copilot call; copilot text still comes from the HTTP response when you run a mode
 
 **✅ Detection Trigger**
 - "Run Detection" button in nav bar
@@ -205,9 +210,11 @@ const DASHBOARD_HTML: &str = include_str!("../static/dashboard.html");
 
 ## 📁 4. Project Structure
 
+*`<repo-root>` is your local clone directory; it can be named anything (for example `ForgeMesh-1`) and does not need to match the GitHub repository name.*
+
 ### New Files Created
 ```
-ForgeMesh/
+<repo-root>/
 ├── crates/vigil-web/static/
 │   ├── index.html          ← Landing page (NEW)
 │   └── dashboard.html      ← Dashboard (NEW)
@@ -217,15 +224,9 @@ ForgeMesh/
 
 ### Files Modified
 ```
-ForgeMesh/
+<repo-root>/
 └── crates/vigil-web/src/
     └── lib.rs              ← Updated routing (MODIFIED)
-```
-
-### Files Backed Up
-```
-ForgeMesh/
-└── landing.html.backup     ← Your original landing page
 ```
 
 ---
@@ -341,9 +342,8 @@ Dashboard
 Backend
   ↓
   └─→ WebSocket (/ws)
-       ├─→ incident_update events
-       ├─→ pipeline_run events
-       └─→ copilot_update events
+       ├─→ incident_update, pipeline_run, incident_reordered, new_data → refresh incidents + health (+ status panels if health view open)
+       └─→ copilot_update → refresh open incident detail when incident_id matches; copilot answer text from POST /copilot
 ```
 
 ---
@@ -357,10 +357,9 @@ Backend
 - Micro-interactions that feel premium
 
 ### ⚡ **Real-Time Updates**
-- WebSocket integration for live data
-- Auto-refreshing health metrics
-- Instant incident list updates
-- No page reloads needed
+- WebSocket integration: list/health refresh on `incident_update` and `pipeline_run`
+- Auto-refreshing health metrics (polling + WebSocket-driven refresh)
+- Incident list updates without full page reload when those events fire
 
 ### 🔐 **Cryptographic Integrity**
 - Merkle root visualization
@@ -425,7 +424,7 @@ Backend
    - Click "View Replay & Audit Trail"
    - Verify Merkle root displayed
    - Check proof path
-   - See verification badge: "Valid Merkle path — data untampered"
+   - See verification badge with the exact API string `Valid Merkle path - data untampered` (ASCII `-`, per `audit.rs`)
 
 7. **Verify WebSocket**
    - Open browser console
@@ -485,39 +484,23 @@ Backend
 
 ---
 
-## 📝 12. Next Steps (Optional Enhancements)
+## 📝 12. Shipped vs roadmap
 
-If you want to extend further:
+**Shipped in this repo** (see [EXTENSIONS.md](EXTENSIONS.md) and [README.md](README.md)):
 
-1. **Add Dark/Light Theme Toggle**
-   - CSS variable switching
-   - Persistent preference (localStorage)
+- Theme toggle (landing + dashboard), localStorage
+- Operator login, sessions, optional `VIGIL_REQUIRE_AUTH`, default `operator`/`vigil`
+- CSV + JSON export, printable HTML report, mailto helper
+- Query filters (severity, machine, line, status, tenant, date range)
+- Slack webhook for critical incidents; browser notifications + tone on detection
+- `tenant_id` and SLA ack fields on incidents; CLI `create-user`
+- Chart.js sensor trends on the **Sensor trends** dashboard view (`/api/sensor/:id/history`)
+- PDF incident export (`GET /api/incidents/:id/export/pdf`), optional tenant scoping (`VIGIL_ENFORCE_TENANT_SCOPE`), **Mesh topology** dashboard view (`GET /api/mesh/topology`)
 
-2. **Add User Authentication**
-   - Operator login
-   - Role-based actions
-   - Session management
+**Still optional / roadmap:**
 
-3. **Enhanced Visualizations**
-   - Chart.js for sensor trends
-   - D3.js for Merkle tree visualization
-   - Timeline graphs for incidents
-
-4. **Export Functionality**
-   - Download audit trails as JSON
-   - Export incidents as CSV
-   - Generate PDF reports
-
-5. **Advanced Filters**
-   - Date range filtering
-   - Severity-based filtering
-   - Machine/line filtering
-   - Full-text search
-
-6. **Notification System**
-   - Browser notifications
-   - Sound alerts for critical incidents
-   - Email integration
+- D3 Merkle tree visualization (richer than the current list + proof)
+- Hosted SSO, policy engine beyond tenant column + env-gated scope
 
 ---
 
@@ -535,7 +518,6 @@ If you want to extend further:
 - ✅ Mobile responsive
 - ✅ Build passes (cargo check)
 - ✅ Quick start guide written
-- ✅ Old landing page backed up
 - ✅ Consistent design system applied
 
 ---

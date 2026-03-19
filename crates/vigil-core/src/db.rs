@@ -11,6 +11,16 @@ const MIGRATION_SQL: &str = include_str!(concat!(
     "/../../migrations/001_incident_intelligence.sql"
 ));
 
+const MIGRATION_002: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../migrations/002_product_features.sql"
+));
+
+const MIGRATION_003: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../migrations/003_app_settings.sql"
+));
+
 async fn ensure_incident_ordering_schema(pool: &SqlitePool) -> sqlx::Result<()> {
     let rank_exists = sqlx::query("PRAGMA table_info(incidents)")
         .fetch_all(pool)
@@ -58,6 +68,42 @@ async fn ensure_incident_ordering_schema(pool: &SqlitePool) -> sqlx::Result<()> 
     Ok(())
 }
 
+async fn column_exists(pool: &SqlitePool, table: &str, col: &str) -> sqlx::Result<bool> {
+    let rows = sqlx::query(&format!("PRAGMA table_info({table})"))
+        .fetch_all(pool)
+        .await?;
+    Ok(rows.iter().any(|row| {
+        row.try_get::<String, _>("name")
+            .map(|name| name == col)
+            .unwrap_or(false)
+    }))
+}
+
+async fn ensure_incident_extensions(pool: &SqlitePool) -> sqlx::Result<()> {
+    if !column_exists(pool, "incidents", "tenant_id").await? {
+        sqlx::query(
+            "ALTER TABLE incidents ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default'",
+        )
+        .execute(pool)
+        .await?;
+    }
+    if !column_exists(pool, "incidents", "sla_ack_by").await? {
+        sqlx::query("ALTER TABLE incidents ADD COLUMN sla_ack_by TEXT")
+            .execute(pool)
+            .await?;
+    }
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_incidents_tenant ON incidents(tenant_id)")
+        .execute(pool)
+        .await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_incidents_severity ON incidents(severity)")
+        .execute(pool)
+        .await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_incidents_machine ON incidents(machine_id)")
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
 pub async fn init_sqlite_pool(db_path: impl AsRef<Path>) -> sqlx::Result<SqlitePool> {
     let path = db_path.as_ref();
     if let Some(parent) = path.parent() {
@@ -76,12 +122,44 @@ pub async fn init_sqlite_pool(db_path: impl AsRef<Path>) -> sqlx::Result<SqliteP
         .await?;
 
     sqlx::query(MIGRATION_SQL).execute(&pool).await?;
+    sqlx::query(MIGRATION_002).execute(&pool).await?;
+    sqlx::query(MIGRATION_003).execute(&pool).await?;
     ensure_incident_ordering_schema(&pool).await?;
+    ensure_incident_extensions(&pool).await?;
+    crate::auth::ensure_default_operator(&pool).await?;
     info!("SQLite incident store initialized at {}", path.display());
     Ok(pool)
 }
 
-pub async fn load_health_snapshot(pool: &SqlitePool) -> sqlx::Result<HealthSnapshot> {
+pub async fn get_app_setting(pool: &SqlitePool, key: &str) -> sqlx::Result<Option<String>> {
+    sqlx::query_scalar::<_, String>("SELECT value FROM app_settings WHERE key = ?1")
+        .bind(key)
+        .fetch_optional(pool)
+        .await
+}
+
+pub async fn set_app_setting(pool: &SqlitePool, key: &str, value: &str) -> sqlx::Result<()> {
+    sqlx::query(
+        "INSERT INTO app_settings (key, value) VALUES (?1, ?2)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    )
+    .bind(key)
+    .bind(value)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn delete_app_setting(pool: &SqlitePool, key: &str) -> sqlx::Result<()> {
+    sqlx::query("DELETE FROM app_settings WHERE key = ?1")
+        .bind(key)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+/// `mesh_nodes` should reflect live mesh size (e.g. 1 + gossip peer count from the daemon).
+pub async fn load_health_snapshot(pool: &SqlitePool, mesh_nodes: i64) -> sqlx::Result<HealthSnapshot> {
     let last_ingest: Option<String> = sqlx::query_scalar("SELECT MAX(ingested_at) FROM raw_events")
         .fetch_one(pool)
         .await?;
@@ -121,7 +199,7 @@ pub async fn load_health_snapshot(pool: &SqlitePool) -> sqlx::Result<HealthSnaps
         events_last_hour,
         incidents_open,
         invalid_events,
-        mesh_nodes: 3,
+        mesh_nodes,
         data_quality: quality,
     })
 }

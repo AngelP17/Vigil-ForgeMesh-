@@ -77,6 +77,17 @@ enum Commands {
     SeedDemo,
     /// Run the incident pipeline against current telemetry and context
     Detect,
+    /// Create an operator account (bcrypt password; stored in SQLite)
+    CreateUser {
+        #[arg(short, long)]
+        username: String,
+        #[arg(short, long)]
+        password: String,
+        #[arg(long, default_value = "operator")]
+        role: String,
+        #[arg(long, default_value = "default")]
+        tenant: String,
+    },
 }
 
 #[tokio::main]
@@ -103,11 +114,28 @@ async fn main() -> Result<()> {
                 );
             }
             let (tx, _rx) = tokio::sync::broadcast::channel(256);
+            let require_auth = std::env::var("VIGIL_REQUIRE_AUTH")
+                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                .unwrap_or(false);
+            let enforce_tenant_scope = std::env::var("VIGIL_ENFORCE_TENANT_SCOPE")
+                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                .unwrap_or(false);
+            let slack_env = std::env::var("VIGIL_SLACK_WEBHOOK_URL").ok();
+            let slack_db = vigil_core::get_app_setting(&db, "slack_webhook_url")
+                .await
+                .ok()
+                .flatten();
+            let slack_initial = slack_env.or(slack_db);
+            let gossip = std::sync::Arc::new(vigil_p2p::GossipEngine::new(cli.node_id.clone()));
             let state = Arc::new(vigil_web::AppState {
                 store: store.clone(),
                 db,
                 node_id: cli.node_id.clone(),
                 tx,
+                require_auth,
+                enforce_tenant_scope,
+                gossip,
+                slack_webhook: std::sync::Arc::new(tokio::sync::RwLock::new(slack_initial)),
             });
             let app = vigil_web::create_router(state);
             let addr = format!("0.0.0.0:{}", port);
@@ -118,6 +146,9 @@ async fn main() -> Result<()> {
         cmd => {
             let store = ForgeStore::new(&cli.db_path)?;
             match cmd {
+                Commands::Daemon { .. } => {
+                    unreachable!("daemon handled in outer match")
+                }
                 Commands::Write { sensor, value } => {
                     let ts = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos() as u64;
                     let hash = store.put(&sensor, value, ts)?;
@@ -197,7 +228,17 @@ async fn main() -> Result<()> {
                         summary.invalid_events
                     );
                 }
-                _ => {}
+                Commands::CreateUser {
+                    username,
+                    password,
+                    role,
+                    tenant,
+                } => {
+                    let db = init_sqlite_pool(&incident_db).await?;
+                    let id = vigil_core::create_operator(&db, &username, &password, &role, &tenant)
+                        .await?;
+                    println!("✓ Created operator {} ({})", username, id);
+                }
             }
         }
     }

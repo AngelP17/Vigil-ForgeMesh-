@@ -6,7 +6,9 @@ Evolved from ForgeMesh distributed industrial historian into a closed-loop decis
 
 [![Rust](https://img.shields.io/badge/Rust-1.75+-orange.svg)](https://rust-lang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![CI](https://github.com/AngelP17/vigil/actions/workflows/ci.yml/badge.svg)](https://github.com/AngelP17/vigil/actions)
+[![CI](https://github.com/AngelP17/ForgeMesh/actions/workflows/ci.yml/badge.svg)](https://github.com/AngelP17/ForgeMesh/actions)
+
+*CI badge targets the default remote for this project (`AngelP17/ForgeMesh`). If you fork, point the badge at your repo.*
 
 ## Problem
 
@@ -16,13 +18,15 @@ Shift supervisors lose time hunting across siloed machine logs, maintenance reco
 
 Vigil ingests noisy multi-source manufacturing data, detects explainable incidents, recommends next actions, records operator decisions, and preserves Merkle-DAG-backed replay for integrity and trust.
 
+**Zero recurring cost (product goal):** the default path is self-hosted on your hardware—no required SaaS, cloud database, LLM API, or subscription. Optional hooks (e.g. Slack incoming webhooks) are add-ons and never required for incidents, detection, replay, or the dashboard.
+
 ## Workflow
 
 `Ingest → Detect → Explain → Recommend → Act → Replay`
 
 ## Why This Matters in High-Stakes Operations
 
-- local-first operation for degraded or partitioned industrial networks
+- local-first operation for degraded or partitioned industrial networks, with **$0 recurring vendor cost** on the core hot path (see Solution above)
 - human-in-the-loop action handling instead of black-box anomaly dashboards
 - replayable incident reasoning with Merkle-backed integrity verification
 - production-minded persistence split: Sled for telemetry, SQLite for operational workflow state
@@ -31,8 +35,8 @@ Vigil ingests noisy multi-source manufacturing data, detects explainable inciden
 
 - Three v1 incident patterns: `temp_spike`, `vibration_anomaly`, `multi_machine_cascade`
 - Three data sources: machine logs, maintenance tickets, operator notes
-- Three operator actions: acknowledge, assign maintenance, reroute, override, resolve
-- Incidents list, incident detail, and replay/audit surfaces in the Axum dashboard
+- **Five** operator actions (not three): acknowledge, assign maintenance, reroute, override, resolve
+- Incidents list, incident detail, and replay/audit surfaces in the Axum dashboard; **Sensor trends** (Chart.js); **Mesh topology** from the live `vigil-p2p` gossip engine (`GET /api/mesh/topology`); **sensor CAR download** (`GET /api/export/:id/car`); PDF export for incidents (`/api/incidents/:id/export/pdf`)
 - Read-first incident copilot for summary, explanation, handoff, and bounded Q&A
 - Local demo seeding with nulls, duplicates, delays, out-of-order events, and conflicting notes
 
@@ -95,16 +99,42 @@ cargo run -p vigil-cli -- verify -s ontario-line1-temp
 
 ```text
 GET  /api/incidents
+GET  /api/incidents?severity=&status=&machine=&q=&from=&to=&tenant_id=
+GET  /api/incidents/export/csv
 GET  /api/incidents/:id
+GET  /api/incidents/:id/export/json
+GET  /api/incidents/:id/export/pdf
+GET  /api/incidents/:id/report
+GET  /api/incidents/:id/notify/mailto
+GET  /api/mesh/topology
+POST /api/export/:id
+GET  /api/export/:id/car
+GET  /api/integrations/slack
+PUT  /api/integrations/slack
+POST /api/integrations/slack/test
 POST /api/incidents/:id/copilot
 GET  /api/incidents/:id/replay
 POST /api/incidents/:id/actions
+POST /api/auth/login
+POST /api/auth/logout
+GET  /api/auth/me
 GET  /api/health
+GET  /api/status
 GET  /api/copilot/status
+POST /api/detection/run
 GET  /api/sensors
 GET  /api/sensor/:id/history
 GET  /api/sensor/:id/analytics
 ```
+
+Environment (optional):
+
+- `VIGIL_REQUIRE_AUTH=true` — require `Authorization: Bearer <token>` on write/simulation/detection/actions/copilot/reorder
+- `VIGIL_ENFORCE_TENANT_SCOPE=true` — when set, signed-in operators with role `operator` (not `supervisor` / `admin`) only see incidents matching their `tenant_id` (CSV/list/detail/replay/exports respect the same rule)
+- `VIGIL_SLACK_WEBHOOK_URL` — Slack incoming webhook for **critical** incidents after detection (optional; dashboard **System Health** can also persist a URL in SQLite via `PUT /api/integrations/slack`, `admin`/`supervisor` only — env wins on restart if set)
+
+Default operator (first database init): username `operator`, password `vigil`. Create more with  
+`cargo run -p vigil-cli -- create-user --username alice --password '...' --role supervisor`.
 
 ## Integrity and Replay
 
@@ -116,11 +146,13 @@ Each incident stores:
 - Merkle root
 - operator action history
 
-Replay responses include the verification string:
+Replay responses include the verification string (exact characters returned by the API; see `crates/vigil-core/src/audit.rs`):
 
 ```text
 Valid Merkle path - data untampered
 ```
+
+Use ASCII hyphen-minus (`U+002D`) between `path` and `data`, not an en dash or em dash.
 
 Copilot responses are also written into replay as read-only audit entries.
 
@@ -133,20 +165,24 @@ The copilot is intentionally narrow:
 - prepares a shift handoff note
 - answers bounded read-only questions grounded in incident, replay, health, and telemetry context
 
-It does not execute actions or change state. The implementation details and 30-day rollout are documented in [docs/vigil-agent.md](/Users/apinzon/Desktop/Active%20Projects/ForgeMesh/docs/vigil-agent.md).
+It does not execute actions or change state. The implementation details and 30-day rollout are documented in [docs/vigil-agent.md](docs/vigil-agent.md) (paths in this README are repo-relative to the workspace root).
 
 ## Demo Assets
 
-- script: [demo/demo_script.md](/Users/apinzon/Desktop/Active%20Projects/ForgeMesh/demo/demo_script.md)
-- scenario: [demo/demo_scenario.md](/Users/apinzon/Desktop/Active%20Projects/ForgeMesh/demo/demo_scenario.md)
-- screenshots directory: [demo/screenshots/README.md](/Users/apinzon/Desktop/Active%20Projects/ForgeMesh/demo/screenshots/README.md)
+- script: [demo/demo_script.md](demo/demo_script.md)
+- scenario: [demo/demo_scenario.md](demo/demo_scenario.md)
+- screenshots directory: [demo/screenshots/README.md](demo/screenshots/README.md)
+- regenerate PNGs (requires a running daemon and [Playwright](https://playwright.dev/)):  
+  `cd demo/screenshots && npm install && npx playwright install chromium && node capture.mjs`  
+  (with `cargo run -p vigil-cli -- daemon --port 8080` in another terminal)
 
 ### Screenshots
 
 ![Incident list and dashboard](demo/screenshots/incident-list.png)
-![Incident detail and replay](demo/screenshots/incident-detail.png)
+![Incident detail](demo/screenshots/incident-detail.png)
 ![Replay and operator workflow](demo/screenshots/replay-view.png)
 ![Health card](demo/screenshots/health-card.png)
+![Sensor trends (Chart.js)](demo/screenshots/sensor-trends.png)
 
 ## Why Vigil Fits High-Stakes Ops Roles
 

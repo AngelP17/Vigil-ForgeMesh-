@@ -85,7 +85,11 @@ Open your browser and navigate to:
    - Verification badge for tamper-evidence
    - Proof path visualization
 
-#### 5. **WebSocket Live Updates**
+#### 5. **System Health & Sensor trends**
+   - **System Health** (sidebar): same health strip as incidents, plus JSON panels for `GET /api/status` and `GET /api/copilot/status`
+   - **Sensor trends** (sidebar): Chart.js line chart fed by `GET /api/sensor/:id/history` (sensor dropdown; refreshes when the WebSocket signals new pipeline/data while this view is open)
+
+#### 6. **WebSocket Live Updates**
    - Real-time incident notifications
    - Automatic health metric refreshes
    - Live event processing updates
@@ -172,7 +176,7 @@ In the dashboard:
 The replay view shows cryptographic verification:
 - Merkle root hash
 - Proof path array
-- Verification badge: "Valid Merkle path — data untampered"
+- Verification badge: `Valid Merkle path - data untampered` — same literal as `crates/vigil-core/src/audit.rs` and the replay JSON `verification` field (ASCII hyphen-minus between `path` and `data`)
 
 ## Architecture Overview
 

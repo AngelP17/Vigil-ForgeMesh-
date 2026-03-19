@@ -17,6 +17,7 @@ bincode = { workspace = true }
 chrono = { workspace = true }
 tracing = { workspace = true }
 rand = { workspace = true }  # NEW: For simulation
+bcrypt = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

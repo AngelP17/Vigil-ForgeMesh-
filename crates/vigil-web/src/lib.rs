@@ -1,8 +1,10 @@
+use axum::body::Body;
 use axum::extract::ws::{Message, WebSocket};
 use axum::{
     extract::{Path, State, WebSocketUpgrade},
+    http::header::{CONTENT_DISPOSITION, CONTENT_TYPE},
     http::StatusCode,
-    response::{Html, IntoResponse, Json},
+    response::{Html, IntoResponse, Json, Response},
     routing::{get, post},
     Router,
 };
@@ -10,15 +12,24 @@ use serde_json::json;
 use sqlx::SqlitePool;
 use std::collections::HashSet;
 use std::sync::Arc;
-use tokio::sync::{broadcast, Mutex};
+use tokio::sync::{broadcast, Mutex, RwLock};
 
 pub mod api;
+mod incident_pdf;
 
 pub struct AppState {
     pub store: Arc<Mutex<vigil_core::store::ForgeStore>>,
     pub db: SqlitePool,
     pub node_id: String,
     pub tx: broadcast::Sender<String>,
+    /// When true, POST / write APIs require `Authorization: Bearer <token>` (or `X-Vigil-Token`).
+    pub require_auth: bool,
+    /// When true, authenticated operators only see incidents for their `tenant_id` unless role is `supervisor` or `admin`.
+    pub enforce_tenant_scope: bool,
+    /// Live gossip / mesh view (Iroh hook feeds `handle_message` in a full deployment).
+    pub gossip: Arc<vigil_p2p::GossipEngine>,
+    /// Slack incoming webhook — env or SQLite `app_settings`; runtime updates from dashboard.
+    pub slack_webhook: Arc<RwLock<Option<String>>>,
 }
 
 pub fn create_router(state: Arc<AppState>) -> Router {
@@ -35,11 +46,21 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/api/line/:id/oee", get(api::get_oee))
         .route("/api/status", get(get_status))
         .route("/api/mesh/topology", get(get_topology))
-        .route("/api/export/:id", post(export_sensor))
+        .route("/api/export/:id/car", get(download_sensor_car))
+        .route("/api/export/:id", post(export_sensor_meta))
+        .route(
+            "/api/integrations/slack",
+            get(api::get_slack_integration).put(api::put_slack_integration),
+        )
+        .route("/api/integrations/slack/test", post(api::post_slack_test))
         .route("/api/demo/detect", post(api::run_detection))
         .route("/api/detection/run", post(api::run_detection))
         .route("/api/health", get(api::get_health))
         .route("/api/copilot/status", get(api::get_copilot_status))
+        .route("/api/auth/login", post(api::auth_login))
+        .route("/api/auth/logout", post(api::auth_logout))
+        .route("/api/auth/me", get(api::auth_me))
+        .route("/api/incidents/export/csv", get(api::export_incidents_csv))
         .route("/api/incidents", get(api::list_incidents))
         .route(
             "/api/incidents/status/:status",
@@ -50,16 +71,43 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/api/incidents/:id/copilot", post(api::run_copilot))
         .route("/api/incidents/:id/replay", get(api::get_replay))
         .route(
+            "/api/incidents/:id/export/json",
+            get(api::export_incident_json),
+        )
+        .route(
+            "/api/incidents/:id/export/pdf",
+            get(api::export_incident_pdf),
+        )
+        .route(
+            "/api/incidents/:id/notify/mailto",
+            get(api::incident_mailto),
+        )
+        .route("/api/incidents/:id/report", get(api::incident_report_html))
+        .route(
             "/api/incidents/:id/actions",
             post(api::take_incident_action),
         )
         .route("/copilot/status", get(api::get_copilot_status))
+        .route("/incidents/export/csv", get(api::export_incidents_csv))
         .route("/incidents", get(api::list_incidents))
         .route(
             "/incidents/status/:status",
             get(api::list_incidents_by_status),
         )
         .route("/incidents/reorder", post(api::reorder_incident))
+        .route(
+            "/incidents/:id/export/json",
+            get(api::export_incident_json),
+        )
+        .route(
+            "/incidents/:id/export/pdf",
+            get(api::export_incident_pdf),
+        )
+        .route("/incidents/:id/report", get(api::incident_report_html))
+        .route(
+            "/incidents/:id/notify/mailto",
+            get(api::incident_mailto),
+        )
         .route("/incidents/:id", get(api::get_incident_detail))
         .route("/incidents/:id/copilot", post(api::run_copilot))
         .route("/incidents/:id/replay", get(api::get_replay))
@@ -161,9 +209,13 @@ async fn get_history(
 
 async fn write_value(
     State(state): State<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
     Path(id): Path<String>,
     body: String,
 ) -> impl IntoResponse {
+    if let Err(code) = api::check_write_auth(&state, &headers).await {
+        return code.into_response();
+    }
     let value: f64 = body.parse().unwrap_or(0.0);
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -177,6 +229,7 @@ async fn write_value(
 
     match result {
         Ok(hash) => {
+            state.gossip.touch_local_activity().await;
             let _ = state.tx.send(
                 json!({
                     "type": "new_data",
@@ -195,6 +248,7 @@ async fn write_value(
                     "hash": hash,
                 })),
             )
+            .into_response()
         }
         Err(error) => (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -202,21 +256,27 @@ async fn write_value(
                 "status": "failed",
                 "error": error.to_string(),
             })),
-        ),
+        )
+        .into_response(),
     }
 }
 
 async fn get_status(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    let store = state.store.lock().await;
-    let mut total_records = 0;
-    let mut sensors = HashSet::new();
+    let (total_records, sensors_tracked) = {
+        let store = state.store.lock().await;
+        let mut total_records = 0;
+        let mut sensors = HashSet::new();
 
-    for item in store.iter_data() {
-        if let Ok((_, node)) = item {
-            total_records += 1;
-            sensors.insert(node.sensor_id);
+        for item in store.iter_data() {
+            if let Ok((_, node)) = item {
+                total_records += 1;
+                sensors.insert(node.sensor_id);
+            }
         }
-    }
+        (total_records, sensors.len())
+    };
+
+    let mesh = state.gossip.mesh_status_json().await;
 
     Json(json!({
         "node_id": state.node_id,
@@ -225,50 +285,93 @@ async fn get_status(State(state): State<Arc<AppState>>) -> impl IntoResponse {
         "mode": "closed-loop incident intelligence",
         "stats": {
             "total_records": total_records,
-            "sensors_tracked": sensors.len(),
+            "sensors_tracked": sensors_tracked,
             "storage_backend": "Sled + SQLite",
             "consistency_model": "Merkle-DAG + operator replay",
         },
-        "mesh": {
-            "peers_connected": 3,
-            "partition_status": "degraded-but-operational",
-            "last_sync": chrono::Utc::now().to_rfc3339(),
-        }
+        "mesh": mesh,
     }))
 }
 
-async fn get_topology() -> impl IntoResponse {
-    Json(json!({
-        "nodes": [
-            {"id": "ontario-line1", "region": "Ontario", "status": "online", "last_seen": "0s"},
-            {"id": "georgia-line2", "region": "Georgia", "status": "online", "last_seen": "2s"},
-            {"id": "texas-line3", "region": "Texas", "status": "degraded", "last_seen": "19s"}
-        ],
-        "links": [
-            {"source": "ontario-line1", "target": "georgia-line2", "latency_ms": 45},
-            {"source": "georgia-line2", "target": "texas-line3", "latency_ms": 87},
-            {"source": "ontario-line1", "target": "texas-line3", "status": "intermittent"}
-        ]
-    }))
+async fn get_topology(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    Json(state.gossip.topology_json().await)
 }
 
-async fn export_sensor(
+async fn export_sensor_meta(
     State(state): State<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
+    if let Err(code) = api::check_write_auth(&state, &headers).await {
+        return code.into_response();
+    }
     let store = state.store.lock().await;
     let history = store.get_history(&id, 10000).unwrap_or_default();
+    let n = history.len();
+    let car_path = format!("/api/export/{}/car", urlencoding::encode(&id));
 
     (
         StatusCode::OK,
         Json(json!({
             "sensor": id,
-            "records": history.len(),
+            "records": n,
             "format": "CAR (Content Addressable Archive)",
             "integrity": "SHA3-256 verified",
-            "download_ready": true,
+            "download_ready": n > 0,
+            "download_car": car_path,
         })),
     )
+        .into_response()
+}
+
+async fn download_sensor_car(
+    State(state): State<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    if let Err(code) = api::check_write_auth(&state, &headers).await {
+        return code.into_response();
+    }
+
+    let mut buf = Vec::new();
+    let count = {
+        let store = state.store.lock().await;
+        match vigil_sync::car::CarExporter::export_sensor(&store, &id, &mut buf) {
+            Ok(c) => c,
+            Err(e) => {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({ "error": e.to_string() })),
+                )
+                    .into_response();
+            }
+        }
+    };
+
+    if count == 0 {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(json!({ "error": "no chain for sensor", "sensor": id })),
+        )
+            .into_response();
+    }
+
+    let safe = id
+        .chars()
+        .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_')
+        .collect::<String>();
+    let filename = format!("sensor-{safe}.car");
+
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(CONTENT_TYPE, "application/octet-stream")
+        .header(
+            CONTENT_DISPOSITION,
+            format!("attachment; filename=\"{}\"", filename),
+        )
+        .body(Body::from(buf))
+        .unwrap()
+        .into_response()
 }
 
 const LANDING_HTML: &str = include_str!("../static/index.html");

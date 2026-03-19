@@ -97,4 +97,27 @@ impl CarExporter {
 
         Ok(ImportReport { imported, skipped })
     }
+
+    /// Export the Merkle chain for one sensor as a FORG CAR stream (oldest → newest parent chain).
+    pub fn export_sensor<W: Write>(
+        store: &ForgeStore,
+        sensor_id: &str,
+        mut writer: W,
+    ) -> Result<usize, CarError> {
+        let mut history = store.get_history(sensor_id, 100_000)?;
+        history.reverse();
+        writer.write_all(b"FORG")?;
+        writer.write_u32::<LittleEndian>(1)?;
+        let mut count = 0;
+        for node in history {
+            let hash = &node.data_hash;
+            let data = bincode::serialize(&node)?;
+            writer.write_u16::<LittleEndian>(hash.len() as u16)?;
+            writer.write_all(hash.as_bytes())?;
+            writer.write_u32::<LittleEndian>(data.len() as u32)?;
+            writer.write_all(&data)?;
+            count += 1;
+        }
+        Ok(count)
+    }
 }

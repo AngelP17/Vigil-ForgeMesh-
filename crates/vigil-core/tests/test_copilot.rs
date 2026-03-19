@@ -24,7 +24,7 @@ async fn generates_read_only_summary_from_incident_context() -> anyhow::Result<(
         .await?
         .expect("incident detail exists");
     let replay = get_replay(&pool, &incident.id).await?;
-    let health = load_health_snapshot(&pool).await?;
+    let health = load_health_snapshot(&pool, 3).await?;
     let context = CopilotContext {
         incident: detail,
         replay,
@@ -64,7 +64,7 @@ async fn logs_copilot_responses_into_replay_payload() -> anyhow::Result<()> {
         .await?
         .expect("incident detail exists");
     let replay = get_replay(&pool, &incident.id).await?;
-    let health = load_health_snapshot(&pool).await?;
+    let health = load_health_snapshot(&pool, 3).await?;
     let context = CopilotContext {
         incident: detail,
         replay,

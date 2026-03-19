@@ -65,7 +65,7 @@ ForgeMesh already has real strengths. Do not bury them under unnecessary rewrite
   - already gives you anomaly and edge analytics foundations
   - should feed the incident engine
 
-- **Axum dashboard + Chart.js + WebSocket**
+- **Axum dashboard + WebSocket** (static HTML/CSS/JS; the landing page uses inline SVG/CSS for illustrative “integrity” graphics; **only** the dashboard **Sensor trends** view loads **Chart.js** from a CDN for `/api/sensor/:id/history` — not used for the landing page charts)
   - already gives you a live operational UI surface
   - should be extended with incidents, details, and replay
 
@@ -198,7 +198,7 @@ jobs:
 README badge:
 
 ```md
-[![CI](https://github.com/AngelP17/vigil/actions/workflows/ci.yml/badge.svg)](https://github.com/AngelP17/vigil/actions)
+[![CI](https://github.com/AngelP17/ForgeMesh/actions/workflows/ci.yml/badge.svg)](https://github.com/AngelP17/ForgeMesh/actions)
 ```
 
 This is a small addition, but it materially improves production credibility.

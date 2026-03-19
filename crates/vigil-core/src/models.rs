@@ -16,6 +16,11 @@ pub struct Incident {
     pub opened_at: Option<String>,
     pub closed_at: Option<String>,
     pub rank: Option<i64>,
+    #[serde(default)]
+    pub tenant_id: Option<String>,
+    /// RFC3339 deadline for acknowledgement SLA (incident open → ack)
+    #[serde(default)]
+    pub sla_ack_by: Option<String>,
 }
 
 impl Incident {
@@ -39,6 +44,8 @@ impl Incident {
             opened_at: Some(Utc::now().to_rfc3339()),
             closed_at: None,
             rank: None,
+            tenant_id: Some("default".to_string()),
+            sla_ack_by: None,
         }
     }
 }

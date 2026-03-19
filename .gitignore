@@ -7,3 +7,4 @@ vigil_data/
 .DS_Store
 .claude/
 *.log
+demo/screenshots/node_modules/

@@ -2,6 +2,8 @@
 
 ## Positioning
 
+Cross-references in this file (for example to `docs/vigil-agent.md`) are **repo-relative** paths from the workspace root, not machine-local paths.
+
 Vigil is the operational decision layer built on top of the existing ForgeMesh industrial data substrate.
 
 ForgeMesh remains responsible for:
@@ -105,4 +107,4 @@ The current copilot is read-only by design. It reuses the same incident and repl
 - guardrails: read-only allowlist, structured responses, audit persistence
 - future path: optional external model behind the same schema once evaluation and trust are strong enough
 
-Detailed rollout guidance lives in [docs/vigil-agent.md](/Users/apinzon/Desktop/Active%20Projects/ForgeMesh/docs/vigil-agent.md).
+Detailed rollout guidance lives in [docs/vigil-agent.md](docs/vigil-agent.md).

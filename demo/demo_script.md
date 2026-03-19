@@ -12,7 +12,7 @@ Target runtime: 5-6 minutes.
    Run `cargo run -p vigil-cli -- detect` and show that incidents are created from the synthetic but messy operational context.
 
 4. Open the dashboard.
-   Start `cargo run -p vigil-cli -- daemon --port 8080`, then open `http://localhost:8080`.
+   Start `cargo run -p vigil-cli -- daemon --port 8080`, then open `http://localhost:8080/dashboard` (the landing page is at `/`; the incident list lives on `/dashboard`).
 
 5. Walk the incident list.
    Open a temperature spike or vibration anomaly. Show the suspected cause, recommended action, linked maintenance context, and operator action controls.

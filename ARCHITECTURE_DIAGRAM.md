@@ -28,11 +28,11 @@
 │  ┌──────────────────┐              ┌──────────────────┐         │
 │  │   REST API       │              │    WebSocket     │         │
 │  ├──────────────────┤              ├──────────────────┤         │
-│  │ GET  /api/health │              │ Real-time Push   │         │
-│  │ GET  /incidents  │              │ • Incident upd.  │         │
-│  │ POST /actions    │              │ • Pipeline runs  │         │
-│  │ POST /copilot    │              │ • Action events  │         │
-│  │ GET  /replay     │              │ • Copilot logs   │         │
+│  │ GET  /api/health                │              │ Real-time push   │         │
+│  │ GET  /api/incidents             │              │ • incident_update│         │
+│  │ POST .../actions                │              │ • pipeline_run   │         │
+│  │ POST .../copilot                │              │ • copilot_update │         │
+│  │ GET  .../replay                 │              │   (UI uses HTTP) │         │
 │  └──────────────────┘              └──────────────────┘         │
 │         │                                    │                  │
 └─────────┼────────────────────────────────────┼──────────────────┘
@@ -108,6 +108,8 @@
 │           Operational State             Tamper-Evident Chain    │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+**REST paths:** Figures use canonical `/api/...` routes. The server also aliases the same incident handlers under `/incidents/...` (no `/api`); prefer `/api/incidents` in new integrations.
 
 ---
 
@@ -539,8 +541,9 @@
 │  │  2. Fetch proof path array                     │         │
 │  │  3. Recompute hashes bottom-up                 │         │
 │  │  4. Compare computed root vs. stored root      │         │
-│  │  5. Return: "Valid Merkle path - data          │         │
-│  │     untampered" or "INVALID - tamper detected" │         │
+│  │  5. Return verification string from audit.rs   │         │
+│  │     ("Valid Merkle path - data untampered" or  │         │
+│  │     "Merkle verification failed")              │         │
 │  └────────────────────────────────────────────────┘         │
 │                                                              │
 │  Tamper Detection:                                           │

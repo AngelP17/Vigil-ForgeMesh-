@@ -15,6 +15,10 @@
   --violet:#a78bfa;--green:#34d399;--amber:#fbbf24;--red:#f87171;
   --text:#f1f5f9;--muted:#94a3b8;--dim:#475569;
 }
+html[data-theme="light"]{
+  --bg:#f8fafc;--bg2:#f1f5f9;--card:#ffffff;--border:#e2e8f0;
+  --text:#0f172a;--muted:#475569;--dim:#64748b;
+}
 html{scroll-behavior:smooth}
 body{
   font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);
@@ -117,7 +121,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:20px 0;
   font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--muted);
   backdrop-filter:blur(12px)
 }
-.pulse-inner .live{color:var(--cyan);font-weight:700;letter-spacing:. 1em;display:flex;align-items:center;gap:8px}
+.pulse-inner .live{color:var(--cyan);font-weight:700;letter-spacing:.1em;display:flex;align-items:center;gap:8px}
 .pulse-inner .live .dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);animation:pulse-dot 2s infinite}
 .pulse-inner .sep{color:var(--dim)}
 .pulse-inner .val{color:var(--text);font-weight:600}
@@ -279,6 +283,7 @@ footer{padding:40px 0;border-top:1px solid var(--border);margin-top:40px}
       <a href="#workflow">Workflow</a>
       <a href="#integrity">Trust</a>
       <a href="/dashboard">Dashboard</a>
+      <a href="#" onclick="toggleLandingTheme();return false" style="opacity:.85">Theme</a>
     </div>
     <button class="nav-cta" onclick="window.location='/dashboard'">Open Dashboard</button>
   </div>
@@ -288,9 +293,9 @@ footer{padding:40px 0;border-top:1px solid var(--border);margin-top:40px}
 <section class="hero">
   <div class="container hero-grid">
     <div>
-      <div class="hero-badge"><span class="dot"></span> Local-first · Merkle-backed · Replay-native</div>
+      <div class="hero-badge"><span class="dot"></span> Local-first · Zero recurring cost · Merkle-backed</div>
       <h1>Turn industrial <span>chaos</span> into operational intelligence.</h1>
-      <p>Vigil ingests noisy machine logs, maintenance tickets, and operator notes — then detects explainable incidents, recommends actions, and preserves tamper-evident replay for every decision.</p>
+      <p>Vigil ingests noisy machine logs, maintenance tickets, and operator notes — then detects explainable incidents, recommends actions, and preserves tamper-evident replay for every decision. The core product stays <strong>zero-cost to run</strong>: no required cloud, subscription, or paid API for detection, incidents, or replay.</p>
       <div class="hero-actions">
         <a href="/dashboard" class="btn-primary">Open Dashboard</a>
         <a href="#workflow" class="btn-ghost">See the Workflow</a>
@@ -359,6 +364,10 @@ footer{padding:40px 0;border-top:1px solid var(--border);margin-top:40px}
       <div>OPEN INCIDENTS: <span class="val" id="open-incidents">—</span></div>
       <span class="sep">|</span>
       <div>LAST INGEST: <span class="val" id="last-ingest">—</span></div>
+      <span class="sep">|</span>
+      <div>NODE: <span class="val" id="status-node-id">—</span></div>
+      <span class="sep">|</span>
+      <div>STORE RECORDS: <span class="val" id="status-total-records">—</span></div>
     </div>
   </div>
 </section>
@@ -381,7 +390,7 @@ footer{padding:40px 0;border-top:1px solid var(--border);margin-top:40px}
       </div>
       <div class="stat">
         <div class="stat-num">0</div>
-        <div class="stat-label">Cloud Dependencies</div>
+        <div class="stat-label">Mandatory cloud spend</div>
       </div>
     </div>
   </div>
@@ -565,7 +574,7 @@ footer{padding:40px 0;border-top:1px solid var(--border);margin-top:40px}
         <div style="margin-top:16px">
           <div class="verify-badge">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            Valid Merkle path — data untampered
+            Valid Merkle path - data untampered
           </div>
         </div>
         <div style="margin-top:20px;padding:14px;border-radius:12px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.04)">
@@ -588,7 +597,7 @@ footer{padding:40px 0;border-top:1px solid var(--border);margin-top:40px}
       <p>Vigil is local-first, replay-native, and built for manufacturing environments where trust matters. See it in action.</p>
       <div class="cta-actions">
         <a href="/dashboard" class="btn-primary">Open Dashboard</a>
-        <a href="https://github.com/AngelP17/vigil" class="btn-ghost">View on GitHub</a>
+        <a href="https://github.com/AngelP17/ForgeMesh" class="btn-ghost">View on GitHub</a>
       </div>
     </div>
   </div>
@@ -601,31 +610,56 @@ footer{padding:40px 0;border-top:1px solid var(--border);margin-top:40px}
       <svg viewBox="0 0 28 28" fill="none" width="22" height="22"><path d="M14 2L2 26L14 20L26 26L14 2Z" fill="#5eead4"/><path d="M14 2L14 20L2 26L14 2Z" fill="#2dd4bf"/></svg>
       <span>Vigil</span>
     </div>
-    <div class="footer-copy">Operational Incident Intelligence · Local-first · Replay-native</div>
+    <div class="footer-copy">Operational Incident Intelligence · Local-first · Replay-native · Zero-cost core</div>
   </div>
 </footer>
 
 <script>
-// Load real health data from API
+// Load health + extended status from API (pulse bar)
 async function loadHealthData() {
   try {
-    const response = await fetch('/api/health');
-    if (response.ok) {
-      const health = await response.json();
+    const [healthRes, statusRes] = await Promise.all([
+      fetch('/api/health'),
+      fetch('/api/status'),
+    ]);
+
+    if (healthRes.ok) {
+      const health = await healthRes.json();
       document.getElementById('events-hour').textContent = health.events_last_hour || '0';
       document.getElementById('data-quality').textContent = health.data_quality || '—';
       document.getElementById('open-incidents').textContent = health.incidents_open || '0';
       document.getElementById('last-ingest').textContent = health.last_ingest || '—';
 
-      // Update mesh nodes if available
       if (health.mesh_nodes) {
         document.getElementById('data-sources').textContent = health.mesh_nodes;
       }
     }
+
+    if (statusRes.ok) {
+      const status = await statusRes.json();
+      const nodeEl = document.getElementById('status-node-id');
+      const recEl = document.getElementById('status-total-records');
+      if (nodeEl) nodeEl.textContent = status.node_id ?? '—';
+      if (recEl) {
+        const n = status.stats && status.stats.total_records;
+        recEl.textContent = n !== undefined && n !== null ? String(n) : '—';
+      }
+    }
   } catch (error) {
-    console.log('Health data not available yet');
+    console.log('Health/status data not available yet');
   }
 }
+
+function toggleLandingTheme() {
+  const d = document.documentElement;
+  const next = d.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+  d.setAttribute('data-theme', next);
+  localStorage.setItem('vigil_theme', next);
+}
+(function () {
+  const t = localStorage.getItem('vigil_theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+})();
 
 // Load health data on page load
 loadHealthData();
