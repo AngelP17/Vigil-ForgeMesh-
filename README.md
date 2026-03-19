@@ -2,11 +2,11 @@
 
 **Operational Incident Intelligence Platform**
 
-![Vigil landing page](docs/landing-page.png)
+![Vigil landing page](docs/readme-vigil-landing.png)
 
 Evolved from ForgeMesh distributed industrial historian into a closed-loop decision system with explainable incidents, operator actions, and Merkle-DAG-backed replay.
 
-*Landing screenshot is captured from the live app with [`demo/screenshots/capture-landing.mjs`](demo/screenshots/capture-landing.mjs) while the daemon is running (`cargo run -p vigil-cli -- daemon --port 8080`).*
+*Screenshot is a headless Chromium capture of `/` only (not your IDE). Regenerate with [`demo/screenshots/capture-landing.mjs`](demo/screenshots/capture-landing.mjs) while the daemon is running (`cargo run -p vigil-cli -- daemon --port 8080`). If GitHub still shows an old picture, hard-refresh the README or wait for CDN cache — the asset file is `docs/readme-vigil-landing.png`.*
 
 [![Rust](https://img.shields.io/badge/Rust-1.75+-orange.svg)](https://rust-lang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)

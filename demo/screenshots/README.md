@@ -4,7 +4,7 @@ PNG files referenced from the root [README](../../README.md):
 
 | File | View |
 |------|------|
-| `../docs/landing-page.png` | Marketing landing `/` (see `capture-landing.mjs`) |
+| `../docs/readme-vigil-landing.png` | Marketing landing `/` (see `capture-landing.mjs`) |
 | `incident-list.png` | Incidents (default) |
 | `incident-detail.png` | First incident detail |
 | `replay-view.png` | Replay & audit after “View Replay & Audit Trail” |
@@ -28,7 +28,7 @@ PNG files referenced from the root [README](../../README.md):
    VIGIL_BASE_URL=http://127.0.0.1:8080 node capture.mjs
    ```
 
-3. Landing page image for the root README (`docs/landing-page.png`):
+3. Landing page image for the root README (`docs/readme-vigil-landing.png`):
 
    ```bash
    node capture-landing.mjs
