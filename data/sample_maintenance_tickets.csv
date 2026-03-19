@@ -1,4 +1,4 @@
 id,machine_id,opened_at,closed_at,ticket_type,status,description
-"e003a754-7b02-403d-9c67-6ca841be84fb","ontario-line1","2026-03-18T18:56:47.338132+00:00","","cooling_fan","open","Historical fan degradation reported on ontario-line1; intermittent airflow loss under peak load."
-"ee2fe863-657f-4d74-9120-882319e1e662","georgia-line2","2026-03-18T18:56:47.338132+00:00","","cooling_fan","open","Historical fan degradation reported on georgia-line2; intermittent airflow loss under peak load."
-"0d4e14a2-ffad-444c-ba4b-e4fa0c34535e","texas-line3","2026-03-18T18:56:47.338132+00:00","","cooling_fan","open","Historical fan degradation reported on texas-line3; intermittent airflow loss under peak load."
+"09e40cf3-0868-42c6-a310-9a1d5c1e8ba2","ontario-line1","2026-03-19T20:13:04.084310+00:00","","cooling_fan","open","Historical fan degradation reported on ontario-line1; intermittent airflow loss under peak load."
+"02401ac6-e7a0-4df4-ae64-79066843d9d4","georgia-line2","2026-03-19T20:13:04.084310+00:00","","cooling_fan","open","Historical fan degradation reported on georgia-line2; intermittent airflow loss under peak load."
+"6834e908-f580-416b-b9f6-b138539f7795","texas-line3","2026-03-19T20:13:04.084310+00:00","","cooling_fan","open","Historical fan degradation reported on texas-line3; intermittent airflow loss under peak load."

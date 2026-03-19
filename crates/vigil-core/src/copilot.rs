@@ -30,7 +30,7 @@ impl CopilotMode {
             "summary" => Some(Self::Summary),
             "explain" => Some(Self::Explain),
             "handoff" => Some(Self::Handoff),
-            "ask" => Some(Self::Ask),
+            "ask" | "qa" => Some(Self::Ask),
             _ => None,
         }
     }

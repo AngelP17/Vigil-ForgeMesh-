@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Vigil Dashboard — Operational Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#070a0e;--bg2:#0c1018;--card:#131823;--border:#1f2937;
+  --cyan:#5eead4;--cyan-glow:rgba(94,234,212,.35);
+  --violet:#a78bfa;--green:#34d399;--amber:#fbbf24;--red:#f87171;
+  --text:#f1f5f9;--muted:#94a3b8;--dim:#475569;
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;line-height:1.6;
+  padding-top:72px
+}
+.mono{font-family:'JetBrains Mono',monospace}
+.container{max-width:1400px;margin:0 auto;padding:0 24px}
+
+/* ─── NAV ─── */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:20px 0;
+  backdrop-filter:blur(20px);background:rgba(7,10,14,.95);
+  border-bottom:1px solid rgba(255,255,255,.04)}
+.nav-inner{display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;letter-spacing:-.03em;cursor:pointer;text-decoration:none;color:var(--text)}
+.logo svg{width:28px;height:28px}
+.nav-actions{display:flex;gap:12px;align-items:center}
+.nav-btn{
+  padding:8px 16px;border-radius:999px;font-size:13px;font-weight:600;
+  border:1px solid var(--border);color:var(--text);background:transparent;
+  cursor:pointer;transition:all .2s
+}
+.nav-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.nav-btn.primary{background:var(--cyan);color:#0a0f1a;border-color:var(--cyan)}
+.nav-btn.primary:hover{transform:translateY(-1px)}
+
+/* ─── SIDEBAR ─── */
+.layout{display:grid;grid-template-columns:240px 1fr;min-height:calc(100vh - 72px)}
+.sidebar{background:var(--bg2);border-right:1px solid var(--border);padding:24px 0}
+.sidebar-section{margin-bottom:28px;padding:0 20px}
+.sidebar-label{
+  font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--dim);margin-bottom:12px
+}
+.sidebar-link{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  border-radius:10px;font-size:14px;color:var(--muted);
+  cursor:pointer;transition:all .2s;margin-bottom:4px
+}
+.sidebar-link:hover{background:rgba(255,255,255,.04);color:var(--text)}
+.sidebar-link.active{background:rgba(94,234,212,.08);color:var(--cyan);border:1px solid rgba(94,234,212,.15)}
+.sidebar-link svg{width:18px;height:18px}
+.sidebar-badge{
+  margin-left:auto;padding:2px 8px;border-radius:999px;
+  font-size:11px;font-weight:700;background:rgba(248,113,113,.15);
+  color:var(--red);font-family:'JetBrains Mono',monospace
+}
+
+/* ─── MAIN CONTENT ─── */
+.main-content{padding:32px;overflow-y:auto;max-height:calc(100vh - 72px)}
+.page-header{margin-bottom:32px}
+.page-title{font-size:32px;font-weight:900;letter-spacing:-.03em;margin-bottom:8px}
+.page-subtitle{font-size:15px;color:var(--muted)}
+.breadcrumb{font-size:13px;color:var(--dim);margin-bottom:16px;font-family:'JetBrains Mono',monospace}
+.breadcrumb span{color:var(--cyan)}
+
+/* ─── HEALTH CARD ─── */
+.health-card{
+  background:linear-gradient(160deg,rgba(19,24,35,.8),rgba(12,16,24,.9));
+  border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:32px
+}
+.health-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:20px}
+.health-metric{text-align:center}
+.health-value{font-size:28px;font-weight:900;letter-spacing:-.02em;line-height:1;font-family:'JetBrains Mono',monospace}
+.health-value .unit{font-size:14px;color:var(--cyan)}
+.health-label{margin-top:6px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+
+/* ─── INCIDENT LIST ─── */
+.incident-list{display:flex;flex-direction:column;gap:16px}
+.incident-card{
+  background:linear-gradient(160deg,rgba(19,24,35,.6),rgba(12,16,24,.8));
+  border:1px solid var(--border);border-radius:16px;padding:20px;
+  cursor:pointer;transition:all .3s
+}
+.incident-card:hover{border-color:rgba(94,234,212,.2);transform:translateY(-2px)}
+.incident-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px}
+.incident-title{font-size:18px;font-weight:700;letter-spacing:-.01em}
+.incident-meta{display:flex;gap:8px}
+.incident-badge{
+  padding:5px 12px;border-radius:999px;font-size:11px;font-weight:700;
+  font-family:'JetBrains Mono',monospace
+}
+.incident-badge.critical{background:rgba(248,113,113,.15);color:var(--red);border:1px solid rgba(248,113,113,.3)}
+.incident-badge.high{background:rgba(251,191,36,.15);color:var(--amber);border:1px solid rgba(251,191,36,.3)}
+.incident-badge.medium{background:rgba(94,234,212,.15);color:var(--cyan);border:1px solid rgba(94,234,212,.3)}
+.incident-badge.low{background:rgba(148,163,184,.15);color:var(--muted);border:1px solid rgba(148,163,184,.3)}
+.incident-badge.open{background:rgba(94,234,212,.08);color:var(--cyan);border:1px solid rgba(94,234,212,.2)}
+.incident-badge.acknowledged{background:rgba(251,191,36,.08);color:var(--amber);border:1px solid rgba(251,191,36,.2)}
+.incident-badge.assigned{background:rgba(167,139,250,.08);color:var(--violet);border:1px solid rgba(167,139,250,.2)}
+.incident-badge.resolved{background:rgba(52,211,153,.08);color:var(--green);border:1px solid rgba(52,211,153,.2)}
+.incident-body p{font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:12px}
+.incident-footer{display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid var(--border)}
+.incident-machine{font-size:12px;color:var(--dim);font-family:'JetBrains Mono',monospace}
+.incident-time{font-size:12px;color:var(--dim)}
+
+/* ─── DETAIL VIEW ─── */
+.detail-view{display:grid;grid-template-columns:2fr 1fr;gap:24px}
+.detail-main{display:flex;flex-direction:column;gap:20px}
+.detail-section{
+  background:linear-gradient(160deg,rgba(19,24,35,.6),rgba(12,16,24,.8));
+  border:1px solid var(--border);border-radius:16px;padding:24px
+}
+.section-title{font-size:16px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.section-title svg{width:18px;height:18px;color:var(--cyan)}
+.detail-field{margin-bottom:14px}
+.detail-field-label{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+.detail-field-value{font-size:14px;color:var(--text)}
+.reasoning-text{font-size:14px;color:var(--muted);line-height:1.8;padding:16px;background:rgba(0,0,0,.2);border-radius:12px;border:1px solid rgba(255,255,255,.04)}
+
+/* ─── ACTION PANEL ─── */
+.action-panel{display:flex;flex-direction:column;gap:20px}
+.action-buttons{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.action-btn{
+  padding:12px;border-radius:12px;font-size:13px;font-weight:600;
+  border:1px solid var(--border);background:rgba(255,255,255,.02);
+  color:var(--text);cursor:pointer;transition:all .2s;text-align:center
+}
+.action-btn:hover{border-color:var(--cyan);background:rgba(94,234,212,.05);color:var(--cyan)}
+.action-btn.primary{background:rgba(94,234,212,.08);border-color:rgba(94,234,212,.2);color:var(--cyan)}
+.action-btn.primary:hover{background:rgba(94,234,212,.15)}
+.action-input{
+  width:100%;padding:12px 14px;border-radius:12px;
+  background:rgba(0,0,0,.2);border:1px solid var(--border);
+  color:var(--text);font-size:14px;font-family:inherit;
+  transition:border .2s;resize:vertical;min-height:80px
+}
+.action-input:focus{outline:none;border-color:var(--cyan)}
+
+/* ─── TIMELINE ─── */
+.timeline{display:flex;flex-direction:column;gap:12px}
+.timeline-item{display:flex;gap:14px;padding:14px;background:rgba(255,255,255,.02);border-radius:12px;border:1px solid rgba(255,255,255,.04)}
+.timeline-icon{
+  width:36px;height:36px;border-radius:10px;display:grid;place-items:center;
+  background:rgba(94,234,212,.08);border:1px solid rgba(94,234,212,.15);
+  color:var(--cyan);flex-shrink:0
+}
+.timeline-icon svg{width:18px;height:18px}
+.timeline-content{flex:1}
+.timeline-action{font-size:14px;font-weight:600;margin-bottom:4px}
+.timeline-note{font-size:13px;color:var(--muted);margin-bottom:6px}
+.timeline-meta{font-size:11px;color:var(--dim);font-family:'JetBrains Mono',monospace}
+
+/* ─── COPILOT ─── */
+.copilot-section{margin-top:20px}
+.copilot-modes{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.copilot-mode{
+  padding:10px;border-radius:10px;font-size:12px;font-weight:600;
+  border:1px solid var(--border);background:rgba(255,255,255,.02);
+  color:var(--muted);cursor:pointer;transition:all .2s;text-align:center
+}
+.copilot-mode:hover{border-color:var(--cyan);color:var(--cyan)}
+.copilot-mode.active{background:rgba(94,234,212,.08);border-color:rgba(94,234,212,.2);color:var(--cyan)}
+.copilot-response{
+  padding:16px;background:rgba(0,0,0,.3);border-radius:12px;
+  border:1px solid rgba(94,234,212,.15);font-size:14px;line-height:1.8;
+  color:var(--text);min-height:120px;max-height:300px;overflow-y:auto
+}
+.copilot-response.loading{
+  display:flex;align-items:center;justify-content:center;
+  color:var(--muted);font-style:italic
+}
+
+/* ─== MERKLE VIS ─── */
+.merkle-vis{
+  padding:20px;background:rgba(0,0,0,.3);border-radius:12px;
+  border:1px solid rgba(52,211,153,.15)
+}
+.merkle-root{
+  font-family:'JetBrains Mono',monospace;font-size:12px;
+  color:var(--green);word-break:break-all;margin-bottom:12px;
+  padding:12px;background:rgba(0,0,0,.4);border-radius:8px
+}
+.merkle-proof{margin-top:12px}
+.merkle-proof-item{
+  font-family:'JetBrains Mono',monospace;font-size:11px;
+  color:var(--cyan);word-break:break-all;margin-bottom:8px;
+  padding:8px;background:rgba(0,0,0,.2);border-radius:6px
+}
+.verification-badge{
+  display:inline-flex;align-items:center;gap:8px;padding:10px 16px;
+  border-radius:12px;background:rgba(52,211,153,.08);
+  border:1px solid rgba(52,211,153,.2);color:var(--green);
+  font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace;
+  margin-top:16px
+}
+.verification-badge svg{width:18px;height:18px}
+
+/* ─── LOADING ─── */
+.loading{display:flex;align-items:center;justify-content:center;padding:60px;color:var(--muted);font-size:14px}
+.loading::after{content:'';width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--cyan);border-radius:50%;animation:spin 1s linear infinite;margin-left:12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ─── EMPTY STATE ─── */
+.empty-state{text-align:center;padding:80px 40px;color:var(--muted)}
+.empty-state svg{width:64px;height:64px;margin-bottom:20px;opacity:.3}
+.empty-state h3{font-size:20px;font-weight:700;color:var(--text);margin-bottom:8px}
+.empty-state p{font-size:14px;line-height:1.7}
+
+/* ─── UTILITY ─── */
+.hidden{display:none!important}
+.text-cyan{color:var(--cyan)}
+.text-green{color:var(--green)}
+.text-amber{color:var(--amber)}
+.text-red{color:var(--red)}
+.mb-16{margin-bottom:16px}
+.mb-24{margin-bottom:24px}
+</style>
+</head>
+<body>
+
+<!-- ═══ NAV ═══ -->
+<nav>
+  <div class="container nav-inner">
+    <a href="/" class="logo">
+      <svg viewBox="0 0 28 28" fill="none"><path d="M14 2L2 26L14 20L26 26L14 2Z" fill="#5eead4"/><path d="M14 2L14 20L2 26L14 2Z" fill="#2dd4bf"/></svg>
+      Vigil
+    </a>
+    <div class="nav-actions">
+      <button class="nav-btn" onclick="window.location='/'">Landing</button>
+      <button class="nav-btn primary" onclick="runDetection()">Run Detection</button>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══ LAYOUT ═══ -->
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Navigation</div>
+      <div class="sidebar-link active" onclick="showView('incidents')">
+        <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>
+        <span>Incidents</span>
+        <span class="sidebar-badge" id="incident-count">0</span>
+      </div>
+      <div class="sidebar-link" onclick="showView('health')">
+        <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"/></svg>
+        <span>System Health</span>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Status Filter</div>
+      <div class="sidebar-link" onclick="filterByStatus('open')">
+        <span>Open</span>
+        <span class="sidebar-badge" id="open-count" style="background:rgba(94,234,212,.15);color:var(--cyan)">0</span>
+      </div>
+      <div class="sidebar-link" onclick="filterByStatus('acknowledged')">
+        <span>Acknowledged</span>
+      </div>
+      <div class="sidebar-link" onclick="filterByStatus('assigned')">
+        <span>Assigned</span>
+      </div>
+      <div class="sidebar-link" onclick="filterByStatus('resolved')">
+        <span>Resolved</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+    <!-- INCIDENTS VIEW -->
+    <div id="view-incidents">
+      <div class="page-header">
+        <div class="breadcrumb">vigil:// / <span>incidents</span></div>
+        <h1 class="page-title">Operational Incidents</h1>
+        <p class="page-subtitle">Explainable incidents detected from machine logs, maintenance tickets, and operator notes</p>
+      </div>
+
+      <div class="health-card">
+        <div class="health-grid">
+          <div class="health-metric">
+            <div class="health-value" id="h-events">—</div>
+            <div class="health-label">Events/Hour</div>
+          </div>
+          <div class="health-metric">
+            <div class="health-value" id="h-incidents">—</div>
+            <div class="health-label">Open Incidents</div>
+          </div>
+          <div class="health-metric">
+            <div class="health-value" id="h-quality">—<span class="unit">%</span></div>
+            <div class="health-label">Data Quality</div>
+          </div>
+          <div class="health-metric">
+            <div class="health-value" id="h-nodes">—</div>
+            <div class="health-label">Mesh Nodes</div>
+          </div>
+          <div class="health-metric">
+            <div class="health-value" id="h-invalid">—</div>
+            <div class="health-label">Invalid Events</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="incident-list" class="incident-list">
+        <div class="loading">Loading incidents</div>
+      </div>
+    </div>
+
+    <!-- HEALTH VIEW -->
+    <div id="view-health" class="hidden">
+      <div class="page-header">
+        <div class="breadcrumb">vigil:// / <span>health</span></div>
+        <h1 class="page-title">System Health</h1>
+        <p class="page-subtitle">Real-time monitoring and operational metrics</p>
+      </div>
+      <div id="health-content"></div>
+    </div>
+
+    <!-- INCIDENT DETAIL VIEW -->
+    <div id="view-detail" class="hidden">
+      <div class="page-header">
+        <div class="breadcrumb">vigil:// / incidents / <span id="detail-breadcrumb">—</span></div>
+        <button class="nav-btn" onclick="showView('incidents')" style="margin-bottom:16px">← Back to Incidents</button>
+        <h1 class="page-title" id="detail-title">Incident Detail</h1>
+      </div>
+      <div id="detail-content"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ═══ STATE ═══
+let currentIncident = null;
+let allIncidents = [];
+let ws = null;
+
+// ═══ WEBSOCKET ═══
+function connectWebSocket() {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+
+  ws.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+      console.log('WS message:', msg);
+      if (msg.type === 'incident_update' || msg.type === 'pipeline_run') {
+        loadIncidents();
+        loadHealth();
+      }
+    } catch (e) {
+      console.error('WS parse error:', e);
+    }
+  };
+
+  ws.onclose = () => {
+    console.log('WS closed, reconnecting...');
+    setTimeout(connectWebSocket, 3000);
+  };
+}
+
+// ═══ API CALLS ═══
+async function loadIncidents() {
+  try {
+    const res = await fetch('/api/incidents');
+    const incidents = await res.json();
+    allIncidents = incidents;
+    renderIncidents(incidents);
+    document.getElementById('incident-count').textContent = incidents.length;
+
+    const openIncidents = incidents.filter(i => i.status === 'open');
+    document.getElementById('open-count').textContent = openIncidents.length;
+  } catch (error) {
+    console.error('Failed to load incidents:', error);
+  }
+}
+
+async function loadHealth() {
+  try {
+    const res = await fetch('/api/health');
+    const health = await res.json();
+
+    document.getElementById('h-events').textContent = health.events_last_hour || '0';
+    document.getElementById('h-incidents').textContent = health.incidents_open || '0';
+
+    const qualityMatch = health.data_quality?.match(/(\d+)%/);
+    document.getElementById('h-quality').innerHTML = qualityMatch ? qualityMatch[1] + '<span class="unit">%</span>' : '—';
+
+    document.getElementById('h-nodes').textContent = health.mesh_nodes || '0';
+    document.getElementById('h-invalid').textContent = health.invalid_events || '0';
+  } catch (error) {
+    console.error('Failed to load health:', error);
+  }
+}
+
+async function loadIncidentDetail(id) {
+  try {
+    const res = await fetch(`/api/incidents/${id}`);
+    const detail = await res.json();
+    currentIncident = detail;
+    renderIncidentDetail(detail);
+  } catch (error) {
+    console.error('Failed to load incident detail:', error);
+  }
+}
+
+async function runDetection() {
+  try {
+    const res = await fetch('/api/detection/run', { method: 'POST' });
+    const result = await res.json();
+    alert(`Detection complete!\nCreated incidents: ${result.created_incidents.length}\nEvents processed: ${result.events_processed}`);
+    loadIncidents();
+  } catch (error) {
+    console.error('Detection failed:', error);
+    alert('Detection failed: ' + error.message);
+  }
+}
+
+async function takeAction(incidentId, actionType, note) {
+  try {
+    const res = await fetch(`/api/incidents/${incidentId}/actions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action_type: actionType,
+        note: note || '',
+        taken_by: 'Operator_1'
+      })
+    });
+    const result = await res.json();
+    loadIncidentDetail(incidentId);
+    loadIncidents();
+  } catch (error) {
+    console.error('Action failed:', error);
+    alert('Action failed: ' + error.message);
+  }
+}
+
+async function runCopilot(incidentId, mode, question = null) {
+  try {
+    const res = await fetch(`/api/incidents/${incidentId}/copilot`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mode,
+        question,
+        requested_by: 'Operator_1'
+      })
+    });
+    const response = await res.json();
+    return response;
+  } catch (error) {
+    console.error('Copilot failed:', error);
+    return { error: error.message };
+  }
+}
+
+async function loadReplay(incidentId) {
+  try {
+    const res = await fetch(`/api/incidents/${incidentId}/replay`);
+    return await res.json();
+  } catch (error) {
+    console.error('Replay load failed:', error);
+    return null;
+  }
+}
+
+// ═══ RENDERING ═══
+function renderIncidents(incidents) {
+  const container = document.getElementById('incident-list');
+
+  if (incidents.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/>
+        </svg>
+        <h3>No incidents detected</h3>
+        <p>Run detection to analyze machine logs, maintenance tickets, and operator notes.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = incidents.map(inc => {
+    const severity = (inc.severity || 'medium').toLowerCase();
+    const status = (inc.status || 'open').toLowerCase();
+    const machine = inc.machine_id || 'unknown';
+    const title = inc.title || inc.incident_type || 'Untitled Incident';
+    const cause = inc.suspected_cause || 'Investigating...';
+    const timeAgo = formatTimeAgo(inc.opened_at);
+
+    return `
+      <div class="incident-card" onclick="showIncidentDetail('${inc.id}')">
+        <div class="incident-header">
+          <h3 class="incident-title">${title}</h3>
+          <div class="incident-meta">
+            <span class="incident-badge ${severity}">${severity.toUpperCase()}</span>
+            <span class="incident-badge ${status}">${status}</span>
+          </div>
+        </div>
+        <div class="incident-body">
+          <p>${cause}</p>
+        </div>
+        <div class="incident-footer">
+          <span class="incident-machine">📍 ${machine}</span>
+          <span class="incident-time">${timeAgo}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderIncidentDetail(detail) {
+  const incident = detail.incident;
+  const actions = detail.operator_actions || [];
+
+  const severity = (incident.severity || 'medium').toLowerCase();
+  const status = (incident.status || 'open').toLowerCase();
+
+  document.getElementById('detail-breadcrumb').textContent = incident.id.substring(0, 8);
+  document.getElementById('detail-title').textContent = incident.title || incident.incident_type;
+
+  const html = `
+    <div class="detail-view">
+      <!-- LEFT COLUMN -->
+      <div class="detail-main">
+        <!-- INCIDENT INFO -->
+        <div class="detail-section">
+          <div class="section-title">
+            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z"/>
+            </svg>
+            Incident Information
+          </div>
+
+          <div class="detail-field">
+            <div class="detail-field-label">Incident ID</div>
+            <div class="detail-field-value mono">${incident.id}</div>
+          </div>
+
+          <div class="detail-field">
+            <div class="detail-field-label">Type</div>
+            <div class="detail-field-value">${incident.incident_type || '—'}</div>
+          </div>
+
+          <div class="detail-field">
+            <div class="detail-field-label">Machine / Line</div>
+            <div class="detail-field-value">${incident.machine_id || '—'}</div>
+          </div>
+
+          <div class="detail-field">
+            <div class="detail-field-label">Severity</div>
+            <div class="detail-field-value">
+              <span class="incident-badge ${severity}">${severity.toUpperCase()}</span>
+            </div>
+          </div>
+
+          <div class="detail-field">
+            <div class="detail-field-label">Status</div>
+            <div class="detail-field-value">
+              <span class="incident-badge ${status}">${status}</span>
+            </div>
+          </div>
+
+          <div class="detail-field">
+            <div class="detail-field-label">Opened At</div>
+            <div class="detail-field-value">${formatDateTime(incident.opened_at)}</div>
+          </div>
+
+          ${incident.closed_at ? `
+          <div class="detail-field">
+            <div class="detail-field-label">Closed At</div>
+            <div class="detail-field-value">${formatDateTime(incident.closed_at)}</div>
+          </div>
+          ` : ''}
+        </div>
+
+        <!-- REASONING -->
+        <div class="detail-section">
+          <div class="section-title">
+            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+            </svg>
+            Suspected Cause
+          </div>
+          <div class="reasoning-text">${incident.suspected_cause || 'Investigating...'}</div>
+        </div>
+
+        <!-- RECOMMENDATION -->
+        <div class="detail-section">
+          <div class="section-title">
+            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+            Recommended Action
+          </div>
+          <div class="reasoning-text">${incident.recommended_action || 'No recommendation yet.'}</div>
+        </div>
+
+        <!-- ACTION HISTORY -->
+        ${actions.length > 0 ? `
+        <div class="detail-section">
+          <div class="section-title">
+            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            Action History
+          </div>
+          <div class="timeline">
+            ${actions.map(action => `
+              <div class="timeline-item">
+                <div class="timeline-icon">
+                  <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                </div>
+                <div class="timeline-content">
+                  <div class="timeline-action">${action.action_type}</div>
+                  ${action.action_note ? `<div class="timeline-note">"${action.action_note}"</div>` : ''}
+                  <div class="timeline-meta">${action.taken_by} · ${formatDateTime(action.taken_at)}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        ` : ''}
+
+        <!-- REPLAY BUTTON -->
+        <div class="detail-section">
+          <button class="action-btn primary" onclick="showReplay('${incident.id}')" style="width:100%">
+            View Replay & Audit Trail
+          </button>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div class="action-panel">
+        <!-- ACTIONS -->
+        <div class="detail-section">
+          <div class="section-title">
+            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/>
+            </svg>
+            Operator Actions
+          </div>
+
+          <textarea id="action-note" class="action-input" placeholder="Add a note (optional)"></textarea>
+
+          <div class="action-buttons">
+            <button class="action-btn" onclick="handleAction('acknowledge')">Acknowledge</button>
+            <button class="action-btn" onclick="handleAction('assign')">Assign Maintenance</button>
+            <button class="action-btn" onclick="handleAction('reroute')">Reroute</button>
+            <button class="action-btn" onclick="handleAction('override')">Override</button>
+            <button class="action-btn primary" onclick="handleAction('resolve')">Resolve</button>
+          </div>
+        </div>
+
+        <!-- COPILOT -->
+        <div class="detail-section">
+          <div class="section-title">
+            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+            </svg>
+            Read-First Copilot
+          </div>
+
+          <div class="copilot-modes">
+            <button class="copilot-mode" onclick="handleCopilot('summary')">Summary</button>
+            <button class="copilot-mode" onclick="handleCopilot('explain')">Explain</button>
+            <button class="copilot-mode" onclick="handleCopilot('handoff')">Handoff</button>
+            <button class="copilot-mode" onclick="handleCopilot('qa')">Q&A</button>
+          </div>
+
+          <div id="copilot-response" class="copilot-response copilot-response.loading">
+            <em>Select a mode to get copilot assistance</em>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('detail-content').innerHTML = html;
+}
+
+async function showReplay(incidentId) {
+  const replay = await loadReplay(incidentId);
+  if (!replay) {
+    alert('Failed to load replay data');
+    return;
+  }
+
+  const html = `
+    <div class="detail-section">
+      <div class="section-title">
+        <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/>
+        </svg>
+        Cryptographic Replay & Audit Trail
+      </div>
+
+      <div class="merkle-vis">
+        <div style="font-weight:700;font-size:14px;margin-bottom:12px;color:var(--green)">Merkle Verification</div>
+        ${replay.merkle_root ? `
+          <div class="detail-field-label">MERKLE ROOT</div>
+          <div class="merkle-root">${replay.merkle_root}</div>
+        ` : '<p class="text-muted">No Merkle root available</p>'}
+
+        ${replay.proof && replay.proof.length > 0 ? `
+          <div class="merkle-proof">
+            <div class="detail-field-label">PROOF PATH</div>
+            ${replay.proof.map((p, i) => `
+              <div class="merkle-proof-item">proof[${i}]: ${p}</div>
+            `).join('')}
+          </div>
+        ` : ''}
+
+        ${replay.verification ? `
+          <div class="verification-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            ${replay.verification}
+          </div>
+        ` : ''}
+      </div>
+
+      ${replay.rules_fired && replay.rules_fired.length > 0 ? `
+        <div style="margin-top:24px">
+          <div class="detail-field-label">RULES FIRED</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+            ${replay.rules_fired.map(rule => `
+              <span class="incident-badge medium">${rule}</span>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+
+      ${replay.reasoning ? `
+        <div style="margin-top:24px">
+          <div class="detail-field-label">REASONING</div>
+          <div class="reasoning-text">${replay.reasoning}</div>
+        </div>
+      ` : ''}
+
+      ${replay.timeline && replay.timeline.length > 0 ? `
+        <div style="margin-top:24px">
+          <div class="detail-field-label">EVENT TIMELINE</div>
+          <div class="timeline" style="margin-top:12px">
+            ${replay.timeline.map(event => `
+              <div class="timeline-item">
+                <div class="timeline-icon">
+                  <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                </div>
+                <div class="timeline-content">
+                  <div class="timeline-action">${event.event_type || 'Event'}</div>
+                  <div class="timeline-note">${event.sensor_id || ''} = ${event.value || ''}</div>
+                  <div class="timeline-meta">${formatDateTime(event.timestamp)}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+
+      <button class="nav-btn" onclick="loadIncidentDetail('${incidentId}')" style="margin-top:24px">← Back to Incident</button>
+    </div>
+  `;
+
+  document.getElementById('detail-content').innerHTML = html;
+}
+
+// ═══ ACTIONS ═══
+function showView(view) {
+  document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+  document.getElementById(`view-${view}`).classList.remove('hidden');
+
+  document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
+  event?.target.closest('.sidebar-link')?.classList.add('active');
+}
+
+function showIncidentDetail(id) {
+  loadIncidentDetail(id);
+  showView('detail');
+}
+
+function filterByStatus(status) {
+  const filtered = allIncidents.filter(i => i.status === status);
+  renderIncidents(filtered);
+}
+
+async function handleAction(actionType) {
+  const note = document.getElementById('action-note')?.value || '';
+  await takeAction(currentIncident.incident.id, actionType, note);
+}
+
+async function handleCopilot(mode) {
+  const responseEl = document.getElementById('copilot-response');
+  responseEl.className = 'copilot-response loading';
+  responseEl.innerHTML = '<em>Thinking...</em>';
+
+  // Activate mode button
+  document.querySelectorAll('.copilot-mode').forEach(el => el.classList.remove('active'));
+  event.target.classList.add('active');
+
+  let question = null;
+  if (mode === 'qa') {
+    question = prompt('What would you like to know about this incident?');
+    if (!question) {
+      responseEl.className = 'copilot-response';
+      responseEl.innerHTML = '<em>Question cancelled</em>';
+      return;
+    }
+  }
+
+  const response = await runCopilot(currentIncident.incident.id, mode, question);
+
+  responseEl.className = 'copilot-response';
+  if (response.error) {
+    responseEl.innerHTML = `<em style="color:var(--red)">Error: ${response.error}</em>`;
+  } else {
+    responseEl.textContent = response.response || 'No response';
+  }
+}
+
+// ═══ UTILITIES ═══
+function formatTimeAgo(timestamp) {
+  if (!timestamp) return '—';
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diff = Math.floor((now - date) / 1000);
+
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+function formatDateTime(timestamp) {
+  if (!timestamp) return '—';
+  const date = new Date(timestamp);
+  return date.toLocaleString();
+}
+
+// ═══ INIT ═══
+window.addEventListener('DOMContentLoaded', () => {
+  loadIncidents();
+  loadHealth();
+  connectWebSocket();
+
+  // Refresh data every 10 seconds
+  setInterval(() => {
+    loadHealth();
+  }, 10000);
+});
+</script>
+
+</body>
+</html>

@@ -23,7 +23,8 @@ pub struct AppState {
 
 pub fn create_router(state: Arc<AppState>) -> Router {
     Router::new()
-        .route("/", get(index_handler))
+        .route("/", get(landing_handler))
+        .route("/dashboard", get(dashboard_handler))
         .route("/favicon.ico", get(favicon_handler))
         .route("/ws", get(websocket_handler))
         .route("/api/sensors", get(list_sensors))
@@ -36,6 +37,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/api/mesh/topology", get(get_topology))
         .route("/api/export/:id", post(export_sensor))
         .route("/api/demo/detect", post(api::run_detection))
+        .route("/api/detection/run", post(api::run_detection))
         .route("/api/health", get(api::get_health))
         .route("/api/copilot/status", get(api::get_copilot_status))
         .route("/api/incidents", get(api::list_incidents))
@@ -94,7 +96,11 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
     }
 }
 
-async fn index_handler() -> Html<&'static str> {
+async fn landing_handler() -> Html<&'static str> {
+    Html(LANDING_HTML)
+}
+
+async fn dashboard_handler() -> Html<&'static str> {
     Html(DASHBOARD_HTML)
 }
 
@@ -265,4 +271,5 @@ async fn export_sensor(
     )
 }
 
-const DASHBOARD_HTML: &str = include_str!("dashboard.html");
+const LANDING_HTML: &str = include_str!("../static/index.html");
+const DASHBOARD_HTML: &str = include_str!("../static/dashboard.html");

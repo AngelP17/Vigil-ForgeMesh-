@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Vigil — Operational Incident Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#070a0e;--bg2:#0c1018;--card:#131823;--border:#1f2937;
+  --cyan:#5eead4;--cyan-glow:rgba(94,234,212,.35);
+  --violet:#a78bfa;--green:#34d399;--amber:#fbbf24;--red:#f87171;
+  --text:#f1f5f9;--muted:#94a3b8;--dim:#475569;
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;line-height:1.6
+}
+.mono{font-family:'JetBrains Mono',monospace}
+.container{max-width:1200px;margin:0 auto;padding:0 24px}
+
+/* ─── NAV ─── */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:20px 0;
+  backdrop-filter:blur(20px);background:rgba(7,10,14,.7);
+  border-bottom:1px solid rgba(255,255,255,.04);transition:background .3s}
+.nav-inner{display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;letter-spacing:-.03em;cursor:pointer;text-decoration:none;color:var(--text)}
+.logo svg{width:28px;height:28px}
+.nav-links{display:flex;gap:32px;font-size:14px;color:var(--muted)}
+.nav-links a{color:inherit;text-decoration:none;transition:color .2s}
+.nav-links a:hover{color:var(--text)}
+.nav-cta{
+  padding:10px 20px;border-radius:999px;font-size:13px;font-weight:600;
+  border:1px solid var(--border);color:var(--text);background:transparent;
+  cursor:pointer;transition:all .25s
+}
+.nav-cta:hover{border-color:var(--cyan);color:var(--cyan)}
+
+/* ─── HERO ─── */
+.hero{padding:160px 0 80px;position:relative;overflow:hidden}
+.hero::before{
+  content:'';position:absolute;top:-200px;left:50%;transform:translateX(-50%);
+  width:900px;height:900px;border-radius:50%;
+  background:radial-gradient(circle,rgba(94,234,212,.08),transparent 70%);
+  pointer-events:none
+}
+.hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:8px;padding:6px 14px;
+  border-radius:999px;font-size:12px;font-weight:600;letter-spacing:.06em;
+  border:1px solid rgba(94,234,212,.2);background:rgba(94,234,212,.06);
+  color:var(--cyan);text-transform:uppercase;margin-bottom:28px
+}
+.hero-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);animation:pulse-dot 2s infinite}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.3}}
+.hero h1{
+  font-size:clamp(44px,6vw,72px);font-weight:900;line-height:.95;
+  letter-spacing:-.05em;margin-bottom:24px
+}
+.hero h1 span{
+  background:linear-gradient(135deg,var(--cyan),var(--violet));
+  -webkit-background-clip:text;background-clip:text;color:transparent
+}
+.hero p{font-size:18px;color:var(--muted);max-width:520px;line-height:1.75;margin-bottom:36px}
+.hero-actions{display:flex;gap:14px;flex-wrap:wrap}
+.btn-primary{
+  padding:14px 28px;border-radius:999px;font-size:15px;font-weight:700;
+  background:var(--cyan);color:#0a0f1a;border:none;cursor:pointer;
+  box-shadow:0 0 40px var(--cyan-glow);transition:all .25s;text-decoration:none
+}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 0 60px var(--cyan-glow)}
+.btn-ghost{
+  padding:14px 28px;border-radius:999px;font-size:15px;font-weight:600;
+  border:1px solid var(--border);color:var(--text);background:transparent;
+  cursor:pointer;transition:all .25s;text-decoration:none
+}
+.btn-ghost:hover{border-color:var(--cyan);color:var(--cyan)}
+
+/* Hero Dashboard Mock */
+.hero-dashboard{
+  position:relative;border-radius:16px;border:1px solid rgba(94,234,212,.15);
+  background:linear-gradient(145deg,rgba(10,17,40,.9),var(--card));
+  box-shadow:0 0 80px rgba(94,234,212,.12);padding:0;overflow:hidden;
+  transform:perspective(1200px) rotateY(-8deg) rotateX(3deg);
+  transition:transform .6s ease
+}
+.hero-dashboard:hover{transform:perspective(1200px) rotateY(-3deg) rotateX(1deg)}
+.dash-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);background:rgba(0,0,0,.3)}
+.dash-bar .dots{display:flex;gap:6px}
+.dash-bar .dots span{width:10px;height:10px;border-radius:50%}
+.dash-bar .dots span:nth-child(1){background:#ef4444}
+.dash-bar .dots span:nth-child(2){background:#eab308}
+.dash-bar .dots span:nth-child(3){background:#22c55e}
+.dash-body{padding:20px;display:grid;grid-template-columns:180px 1fr;gap:16px;min-height:340px}
+.dash-sidebar{display:flex;flex-direction:column;gap:8px}
+.dash-sensor{padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);font-size:11px;color:var(--muted)}
+.dash-sensor.active{border-color:rgba(94,234,212,.25);background:rgba(94,234,212,.05);color:var(--cyan)}
+.dash-main{display:flex;flex-direction:column;gap:12px}
+.chart-area{flex:1;border-radius:12px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.04);padding:16px;position:relative;overflow:hidden}
+.chart-line{position:absolute;bottom:0;left:0;right:0;height:100%}
+.incidents-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.incident-mini{padding:10px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);font-size:11px}
+.incident-mini.critical{border-color:rgba(248,113,113,.3);background:rgba(248,113,113,.05)}
+.incident-mini.high{border-color:rgba(251,191,36,.3);background:rgba(251,191,36,.05)}
+.incident-mini.medium{border-color:rgba(94,234,212,.2);background:rgba(94,234,212,.03)}
+
+/* ─── PULSE BAR ─── */
+.pulse-bar{padding:0 0 60px}
+.pulse-inner{
+  display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:24px;
+  padding:16px 32px;border-radius:999px;
+  background:rgba(19,24,35,.6);border:1px solid var(--border);
+  font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--muted);
+  backdrop-filter:blur(12px)
+}
+.pulse-inner .live{color:var(--cyan);font-weight:700;letter-spacing:. 1em;display:flex;align-items:center;gap:8px}
+.pulse-inner .live .dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);animation:pulse-dot 2s infinite}
+.pulse-inner .sep{color:var(--dim)}
+.pulse-inner .val{color:var(--text);font-weight:600}
+
+/* ─── STATS ─── */
+.stats{padding:60px 0}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px}
+.stat{text-align:center;padding:32px 20px}
+.stat-num{font-size:clamp(36px,4vw,52px);font-weight:900;letter-spacing:-.04em;line-height:1}
+.stat-num .unit{font-size:.5em;color:var(--cyan)}
+.stat-label{margin-top:8px;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;font-weight:600}
+
+/* ─── FEATURES ─── */
+.features{padding:100px 0;position:relative}
+.features::before{
+  content:'';position:absolute;top:0;left:0;right:0;bottom:0;
+  background:radial-gradient(ellipse at 30% 20%,rgba(94,234,212,.04),transparent 50%),
+             radial-gradient(ellipse at 70% 80%,rgba(167,139,250,.04),transparent 50%);
+  pointer-events:none
+}
+.section-label{
+  display:inline-flex;align-items:center;gap:8px;padding:6px 14px;
+  border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.12em;
+  border:1px solid var(--border);background:rgba(255,255,255,.03);
+  color:var(--muted);text-transform:uppercase;margin-bottom:20px
+}
+.section-title{font-size:clamp(36px,4vw,52px);font-weight:900;letter-spacing:-.04em;line-height:1.05;margin-bottom:16px}
+.section-sub{font-size:18px;color:var(--muted);max-width:600px;line-height:1.7;margin-bottom:56px}
+.features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;position:relative;z-index:1}
+.feature-card{
+  padding:36px 32px;border-radius:20px;
+  background:linear-gradient(160deg,rgba(19,24,35,.8),rgba(12,16,24,.9));
+  border:1px solid var(--border);transition:all .35s;position:relative;overflow:hidden
+}
+.feature-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:0;
+  transition:opacity .35s
+}
+.feature-card:hover{border-color:rgba(94,234,212,.2);transform:translateY(-4px)}
+.feature-card:hover::before{opacity:1}
+.feature-icon{
+  width:48px;height:48px;border-radius:14px;display:grid;place-items:center;
+  background:rgba(94,234,212,.08);border:1px solid rgba(94,234,212,.15);
+  color:var(--cyan);margin-bottom:24px
+}
+.feature-card h3{font-size:20px;font-weight:800;letter-spacing:-.02em;margin-bottom:12px}
+.feature-card p{font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:20px}
+.feature-tags{display:flex;flex-wrap:wrap;gap:6px}
+.feature-tags span{
+  padding:4px 10px;border-radius:999px;font-size:11px;font-weight:600;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);
+  color:var(--muted);font-family:'JetBrains Mono',monospace
+}
+
+/* ─── WORKFLOW ─── */
+.workflow{padding:100px 0}
+.workflow-grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start}
+.workflow-steps{display:flex;flex-direction:column;gap:16px}
+.wf-step{
+  display:grid;grid-template-columns:56px 1fr;gap:16px;align-items:start;
+  padding:20px;border-radius:16px;border:1px solid var(--border);
+  background:rgba(255,255,255,.02);transition:all .3s
+}
+.wf-step:hover{border-color:rgba(94,234,212,.2);background:rgba(94,234,212,.02)}
+.wf-num{
+  width:56px;height:56px;border-radius:14px;display:grid;place-items:center;
+  background:linear-gradient(135deg,rgba(94,234,212,.12),rgba(167,139,250,.1));
+  border:1px solid rgba(94,234,212,.15);font-weight:900;font-size:20px;color:var(--cyan)
+}
+.wf-step h4{font-size:17px;font-weight:700;letter-spacing:-.01em;margin-bottom:6px}
+.wf-step p{font-size:13px;color:var(--muted);line-height:1.65}
+.workflow-aside{
+  padding:36px;border-radius:20px;border:1px solid var(--border);
+  background:linear-gradient(160deg,rgba(19,24,35,.6),rgba(12,16,24,.8));
+  position:sticky;top:120px
+}
+.workflow-aside blockquote{font-size:26px;font-weight:800;line-height:1.2;letter-spacing:-.03em;margin-bottom:20px}
+.workflow-aside .attribution{font-size:14px;color:var(--muted);line-height:1.7}
+
+/* ─── INTEGRITY ─── */
+.integrity{padding:100px 0}
+.integrity-grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
+.integrity-visual{
+  border-radius:20px;border:1px solid rgba(52,211,153,.15);
+  background:linear-gradient(160deg,rgba(52,211,153,.04),rgba(19,24,35,.8));
+  padding:32px;position:relative;overflow:hidden
+}
+.integrity-visual::after{
+  content:'';position:absolute;top:-50%;right:-30%;width:300px;height:300px;
+  border-radius:50%;background:radial-gradient(circle,rgba(52,211,153,.08),transparent 70%);
+  pointer-events:none
+}
+.merkle-hash{
+  padding:12px 16px;border-radius:10px;background:rgba(0,0,0,.3);
+  font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--green);
+  word-break:break-all;margin-bottom:12px;border:1px solid rgba(52,211,153,.1)
+}
+.verify-badge{
+  display:inline-flex;align-items:center;gap:8px;padding:10px 16px;
+  border-radius:12px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);
+  color:var(--green);font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace
+}
+.verify-badge svg{width:18px;height:18px}
+
+/* ─── CTA ─── */
+.cta-section{padding:100px 0}
+.cta-box{
+  padding:64px;border-radius:24px;text-align:center;position:relative;overflow:hidden;
+  background:linear-gradient(160deg,rgba(19,24,35,.8),rgba(12,16,24,.9));
+  border:1px solid var(--border)
+}
+.cta-box::before{
+  content:'';position:absolute;top:-100px;left:50%;transform:translateX(-50%);
+  width:600px;height:600px;border-radius:50%;
+  background:radial-gradient(circle,rgba(94,234,212,.06),transparent 70%);
+  pointer-events:none
+}
+.cta-box h2{font-size:clamp(32px,4vw,48px);font-weight:900;letter-spacing:-.04em;margin-bottom:16px;position:relative}
+.cta-box p{font-size:17px;color:var(--muted);max-width:560px;margin:0 auto 36px;line-height:1.7;position:relative}
+.cta-actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;position:relative}
+
+/* ─── FOOTER ─── */
+footer{padding:40px 0;border-top:1px solid var(--border);margin-top:40px}
+.footer-inner{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+.footer-brand{display:flex;align-items:center;gap:10px;font-weight:700}
+.footer-brand svg{width:22px;height:22px}
+.footer-copy{font-size:13px;color:var(--dim)}
+
+/* ─── RESPONSIVE ─── */
+@media(max-width:1024px){
+  .hero-grid,.workflow-grid,.integrity-grid{grid-template-columns:1fr}
+  .hero-dashboard{transform:none}
+  .hero-dashboard:hover{transform:none}
+  .features-grid{grid-template-columns:1fr 1fr}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:640px){
+  .features-grid,.stats-grid{grid-template-columns:1fr}
+  .incidents-row{grid-template-columns:1fr}
+  .dash-body{grid-template-columns:1fr}
+  .dash-sidebar{display:none}
+  .nav-links{display:none}
+  .cta-box{padding:36px 24px}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ NAV ═══ -->
+<nav>
+  <div class="container nav-inner">
+    <a href="/" class="logo">
+      <svg viewBox="0 0 28 28" fill="none"><path d="M14 2L2 26L14 20L26 26L14 2Z" fill="#5eead4"/><path d="M14 2L14 20L2 26L14 2Z" fill="#2dd4bf"/></svg>
+      Vigil
+    </a>
+    <div class="nav-links">
+      <a href="#features">Platform</a>
+      <a href="#workflow">Workflow</a>
+      <a href="#integrity">Trust</a>
+      <a href="/dashboard">Dashboard</a>
+    </div>
+    <button class="nav-cta" onclick="window.location='/dashboard'">Open Dashboard</button>
+  </div>
+</nav>
+
+<!-- ═══ HERO ═══ -->
+<section class="hero">
+  <div class="container hero-grid">
+    <div>
+      <div class="hero-badge"><span class="dot"></span> Local-first · Merkle-backed · Replay-native</div>
+      <h1>Turn industrial <span>chaos</span> into operational intelligence.</h1>
+      <p>Vigil ingests noisy machine logs, maintenance tickets, and operator notes — then detects explainable incidents, recommends actions, and preserves tamper-evident replay for every decision.</p>
+      <div class="hero-actions">
+        <a href="/dashboard" class="btn-primary">Open Dashboard</a>
+        <a href="#workflow" class="btn-ghost">See the Workflow</a>
+      </div>
+    </div>
+    <div class="hero-dashboard">
+      <div class="dash-bar">
+        <div class="dots"><span></span><span></span><span></span></div>
+        <span class="mono" style="font-size:11px;color:var(--muted)">vigil://ops/incidents/live</span>
+        <div style="display:flex;gap:8px">
+          <span style="padding:4px 10px;border-radius:6px;background:rgba(94,234,212,.08);font-size:10px;color:var(--cyan);font-family:'JetBrains Mono',monospace">24h</span>
+          <span style="padding:4px 10px;border-radius:6px;background:rgba(255,255,255,.04);font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">1h</span>
+        </div>
+      </div>
+      <div class="dash-body">
+        <div class="dash-sidebar">
+          <div class="dash-sensor active">ontario-line1-temp</div>
+          <div class="dash-sensor">ontario-line1-vibration</div>
+          <div class="dash-sensor">ontario-line2-temp</div>
+          <div class="dash-sensor">detroit-press-temp</div>
+          <div class="dash-sensor">detroit-press-vibration</div>
+        </div>
+        <div class="dash-main">
+          <div class="chart-area">
+            <svg class="chart-line" viewBox="0 0 400 160" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="g1" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#5eead4"/><stop offset="100%" stop-color="#a78bfa"/></linearGradient>
+                <linearGradient id="gFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(94,234,212,.15)"/><stop offset="100%" stop-color="transparent"/></linearGradient>
+              </defs>
+              <path d="M0,120 Q40,110 80,95 T160,80 T240,50 T320,70 T400,30 V160 H0Z" fill="url(#gFill)"/>
+              <path d="M0,120 Q40,110 80,95 T160,80 T240,50 T320,70 T400,30" fill="none" stroke="url(#g1)" stroke-width="2.5"/>
+              <circle cx="320" cy="70" r="4" fill="#f87171"/>
+              <circle cx="320" cy="70" r="8" fill="none" stroke="rgba(248,113,113,.3)" stroke-width="1.5"/>
+            </svg>
+          </div>
+          <div class="incidents-row">
+            <div class="incident-mini critical">
+              <div style="font-weight:700;font-size:12px;margin-bottom:4px">Temp Spike</div>
+              <div style="color:var(--muted);font-size:10px">Critical · 2m ago</div>
+            </div>
+            <div class="incident-mini high">
+              <div style="font-weight:700;font-size:12px;margin-bottom:4px">Vibration Anomaly</div>
+              <div style="color:var(--muted);font-size:10px">High · 8m ago</div>
+            </div>
+            <div class="incident-mini medium">
+              <div style="font-weight:700;font-size:12px;margin-bottom:4px">Cascade Risk</div>
+              <div style="color:var(--muted);font-size:10px">Medium · 14m ago</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ PULSE BAR ═══ -->
+<section class="pulse-bar">
+  <div class="container">
+    <div class="pulse-inner" id="pulse-bar">
+      <div class="live"><span class="dot"></span>LIVE PULSE</div>
+      <span class="sep">|</span>
+      <div>EVENTS/HOUR: <span class="val" id="events-hour">—</span></div>
+      <span class="sep">|</span>
+      <div>DATA QUALITY: <span class="val" id="data-quality">—</span></div>
+      <span class="sep">|</span>
+      <div>OPEN INCIDENTS: <span class="val" id="open-incidents">—</span></div>
+      <span class="sep">|</span>
+      <div>LAST INGEST: <span class="val" id="last-ingest">—</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ STATS ═══ -->
+<section class="stats">
+  <div class="container">
+    <div class="stats-grid">
+      <div class="stat">
+        <div class="stat-num" id="data-sources">3</div>
+        <div class="stat-label">Data Sources</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">5<span class="unit">ms</span></div>
+        <div class="stat-label">Detection Latency</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">100<span class="unit">%</span></div>
+        <div class="stat-label">Replay Integrity</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">0</div>
+        <div class="stat-label">Cloud Dependencies</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ FEATURES ═══ -->
+<section class="features" id="features">
+  <div class="container" style="position:relative;z-index:1">
+    <div class="section-label">Capabilities</div>
+    <h2 class="section-title">A decision system,<br/>not a dashboard.</h2>
+    <p class="section-sub">Vigil compresses evidence, reasoning, and operator action into a single surface — so teams move from signal to decision without digging through disconnected tooling.</p>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+        </div>
+        <h3>Explainable Incidents</h3>
+        <p>Every incident carries a rule-firing timeline, suspected cause, and confidence score. No black-box anomalies — only traceable reasoning grounded in real telemetry data.</p>
+        <div class="feature-tags">
+          <span>temp_spike</span><span>vibration_anomaly</span><span>multi_machine_cascade</span>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </div>
+        <h3>Actionable Recommendations</h3>
+        <p>The system recommends next actions — acknowledge, assign maintenance, reroute, override, or resolve — and records the operator's decision in the same audit ledger.</p>
+        <div class="feature-tags">
+          <span>acknowledge</span><span>assign</span><span>reroute</span><span>override</span><span>resolve</span>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        </div>
+        <h3>Merkle-Backed Audit Trails</h3>
+        <p>Every decision is cryptographically sealed. Replay payloads include Merkle roots and proof arrays so any stakeholder can verify that data is untampered.</p>
+        <div class="feature-tags">
+          <span>merkle_root</span><span>proof_array</span><span>verification</span>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+        </div>
+        <h3>Local-First Storage</h3>
+        <p>Sled for immutable telemetry chains, SQLite for operational state. No cloud dependencies, no network partitions breaking your incident loop.</p>
+        <div class="feature-tags">
+          <span>sled</span><span>sqlite</span><span>offline-capable</span>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+        </div>
+        <h3>Read-First Copilot</h3>
+        <p>An incident copilot that summarizes, explains, and prepares handoff notes — without ever changing state. All answers are audit-logged into the replay trail.</p>
+        <div class="feature-tags">
+          <span>summary</span><span>explain</span><span>handoff</span><span>bounded Q&A</span>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        </div>
+        <h3>Messy-Data Fluent</h3>
+        <p>Built for real manufacturing: late arrivals, duplicates, out-of-order events, and conflicting operator notes. The system tolerates dirty input without collapsing into noise.</p>
+        <div class="feature-tags">
+          <span>dedup</span><span>late-arrival</span><span>conflict-handling</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ WORKFLOW ═══ -->
+<section class="workflow" id="workflow">
+  <div class="container">
+    <div class="workflow-grid">
+      <div>
+        <div class="section-label">Workflow</div>
+        <h2 class="section-title">From ingestion<br/>to action in one flow.</h2>
+        <p class="section-sub">Every step is traceable. Every decision is recorded. Every replay is verifiable.</p>
+        <div class="workflow-steps">
+          <div class="wf-step">
+            <div class="wf-num">1</div>
+            <div>
+              <h4>Ingest</h4>
+              <p>Collect machine telemetry, maintenance tickets, and operator notes with no assumption that sources arrive clean or on time.</p>
+            </div>
+          </div>
+          <div class="wf-step">
+            <div class="wf-num">2</div>
+            <div>
+              <h4>Detect</h4>
+              <p>Correlate events across time windows and rules so the system surfaces incidents, not raw noise.</p>
+            </div>
+          </div>
+          <div class="wf-step">
+            <div class="wf-num">3</div>
+            <div>
+              <h4>Explain</h4>
+              <p>Show what fired, why it fired, and what evidence raised or lowered confidence — grounded in real data.</p>
+            </div>
+          </div>
+          <div class="wf-step">
+            <div class="wf-num">4</div>
+            <div>
+              <h4>Act</h4>
+              <p>Capture acknowledgment, assignment, reroute, override, or resolution inside the same surface.</p>
+            </div>
+          </div>
+          <div class="wf-step">
+            <div class="wf-num">5</div>
+            <div>
+              <h4>Replay</h4>
+              <p>Reconstruct the complete decision chain — reasoning, operator response, and Merkle-backed integrity verification.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="workflow-aside">
+        <div class="section-label">Design Thesis</div>
+        <blockquote>"High-stakes operators do not need more telemetry. They need clarity, confidence, and a defensible path to action."</blockquote>
+        <p class="attribution">Vigil keeps incidents dominant, reasoning legible, and auditability first-class. The product is not just about detection — it is about trusted action under uncertainty.</p>
+        <div style="margin-top:28px;padding:16px;border-radius:14px;background:rgba(94,234,212,.04);border:1px solid rgba(94,234,212,.1)">
+          <div style="font-weight:700;font-size:15px;margin-bottom:4px">Built for high-stakes ops roles</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.7">End-to-end ownership of an operational incident workflow. Explainable decision support under messy, conflicting data. Human-in-the-loop actions with status transitions and audit history.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ INTEGRITY ═══ -->
+<section class="integrity" id="integrity">
+  <div class="container">
+    <div class="integrity-grid">
+      <div>
+        <div class="section-label">Trust & Integrity</div>
+        <h2 class="section-title">Every decision<br/>is cryptographically sealed.</h2>
+        <p class="section-sub">Replay payloads combine timeline events, rule identifiers, reasoning text, Merkle roots, operator actions, and copilot history into one verifiable record.</p>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:flex-start;gap:14px">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.15);display:grid;place-items:center;flex-shrink:0;color:var(--green)">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            </div>
+            <div>
+              <div style="font-weight:700;font-size:15px;margin-bottom:4px">Tamper-Evident Lineage</div>
+              <div style="font-size:13px;color:var(--muted);line-height:1.7">Sled-backed immutable telemetry chains with Merkle verification for every data point.</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:14px">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(94,234,212,.08);border:1px solid rgba(94,234,212,.15);display:grid;place-items:center;flex-shrink:0;color:var(--cyan)">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            </div>
+            <div>
+              <div style="font-weight:700;font-size:15px;margin-bottom:4px">Operator Visibility</div>
+              <div style="font-size:13px;color:var(--muted);line-height:1.7">Every note, override, and action is recorded in the same incident ledger with timestamps and actor identity.</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:14px">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.15);display:grid;place-items:center;flex-shrink:0;color:var(--violet)">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </div>
+            <div>
+              <div style="font-weight:700;font-size:15px;margin-bottom:4px">Full Replay</div>
+              <div style="font-size:13px;color:var(--muted);line-height:1.7">Reconstruct the exact sequence of events, rules fired, reasoning, and human decisions that led to any outcome.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="integrity-visual">
+        <div style="font-weight:700;font-size:14px;margin-bottom:4px;color:var(--green)">Replay Verification</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:20px;font-family:'JetBrains Mono',monospace">Incident: temp_spike · ontario-line1</div>
+        <div class="merkle-hash">merkle_root: 0x7a3f9c2e8b1d4f6a0e5c3b9d7f2a8e1c4b6d0f3a9e7c2b5d8f1a4e6c3b9d7f2a</div>
+        <div class="merkle-hash">proof[0]: 0x3b9d7f2a8e1c4b6d0f3a9e7c2b5d8f1a4e6c3b9d7f2a7a3f9c2e8b1d4f6a0e5c</div>
+        <div class="merkle-hash">proof[1]: 0x8e1c4b6d0f3a9e7c2b5d8f1a4e6c3b9d7f2a7a3f9c2e8b1d4f6a0e5c3b9d7f2a</div>
+        <div style="margin-top:16px">
+          <div class="verify-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Valid Merkle path — data untampered
+          </div>
+        </div>
+        <div style="margin-top:20px;padding:14px;border-radius:12px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.04)">
+          <div style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:8px">RULES FIRED</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <span style="padding:4px 10px;border-radius:999px;background:rgba(94,234,212,.08);border:1px solid rgba(94,234,212,.15);font-size:11px;color:var(--cyan);font-family:'JetBrains Mono',monospace">temp_spike</span>
+            <span style="padding:4px 10px;border-radius:999px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.15);font-size:11px;color:var(--amber);font-family:'JetBrains Mono',monospace">multi_machine_cascade</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ CTA ═══ -->
+<section class="cta-section">
+  <div class="container">
+    <div class="cta-box">
+      <h2>Ready to close the loop?</h2>
+      <p>Vigil is local-first, replay-native, and built for manufacturing environments where trust matters. See it in action.</p>
+      <div class="cta-actions">
+        <a href="/dashboard" class="btn-primary">Open Dashboard</a>
+        <a href="https://github.com/AngelP17/vigil" class="btn-ghost">View on GitHub</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ FOOTER ═══ -->
+<footer>
+  <div class="container footer-inner">
+    <div class="footer-brand">
+      <svg viewBox="0 0 28 28" fill="none" width="22" height="22"><path d="M14 2L2 26L14 20L26 26L14 2Z" fill="#5eead4"/><path d="M14 2L14 20L2 26L14 2Z" fill="#2dd4bf"/></svg>
+      <span>Vigil</span>
+    </div>
+    <div class="footer-copy">Operational Incident Intelligence · Local-first · Replay-native</div>
+  </div>
+</footer>
+
+<script>
+// Load real health data from API
+async function loadHealthData() {
+  try {
+    const response = await fetch('/api/health');
+    if (response.ok) {
+      const health = await response.json();
+      document.getElementById('events-hour').textContent = health.events_last_hour || '0';
+      document.getElementById('data-quality').textContent = health.data_quality || '—';
+      document.getElementById('open-incidents').textContent = health.incidents_open || '0';
+      document.getElementById('last-ingest').textContent = health.last_ingest || '—';
+
+      // Update mesh nodes if available
+      if (health.mesh_nodes) {
+        document.getElementById('data-sources').textContent = health.mesh_nodes;
+      }
+    }
+  } catch (error) {
+    console.log('Health data not available yet');
+  }
+}
+
+// Load health data on page load
+loadHealthData();
+
+// Refresh health data every 5 seconds
+setInterval(loadHealthData, 5000);
+</script>
+
+</body>
+</html>
