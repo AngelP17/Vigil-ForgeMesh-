@@ -18,8 +18,9 @@
 html[data-theme="light"]{
   --bg:#f8fafc;--bg2:#f1f5f9;--card:#ffffff;--border:#e2e8f0;
   --text:#0f172a;--muted:#475569;--dim:#64748b;
+  --cyan-glow:rgba(13,148,136,.22);
 }
-html{scroll-behavior:smooth}
+html{scroll-behavior:smooth;scroll-padding-top:96px}
 body{
   font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);
   -webkit-font-smoothing:antialiased;overflow-x:hidden;line-height:1.6
@@ -30,11 +31,11 @@ body{
 /* ─── NAV ─── */
 nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:20px 0;
   backdrop-filter:blur(20px);background:rgba(7,10,14,.7);
-  border-bottom:1px solid rgba(255,255,255,.04);transition:background .3s}
+  border-bottom:1px solid rgba(255,255,255,.04);transition:background .3s,border-color .3s}
 .nav-inner{display:flex;align-items:center;justify-content:space-between}
 .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;letter-spacing:-.03em;cursor:pointer;text-decoration:none;color:var(--text)}
 .logo svg{width:28px;height:28px}
-.nav-links{display:flex;gap:32px;font-size:14px;color:var(--muted)}
+.nav-links{display:flex;gap:32px;font-size:14px;color:var(--muted);align-items:center}
 .nav-links a{color:inherit;text-decoration:none;transition:color .2s}
 .nav-links a:hover{color:var(--text)}
 .nav-cta{
@@ -171,11 +172,25 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:20px 0;
 .feature-card h3{font-size:20px;font-weight:800;letter-spacing:-.02em;margin-bottom:12px}
 .feature-card p{font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:20px}
 .feature-tags{display:flex;flex-wrap:wrap;gap:6px}
-.feature-tags span{
+.feature-tags .tag-chip{
   padding:4px 10px;border-radius:999px;font-size:11px;font-weight:600;
   background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);
-  color:var(--muted);font-family:'JetBrains Mono',monospace
+  color:var(--muted);font-family:'JetBrains Mono',monospace;
+  cursor:pointer;font:inherit;transition:border-color .2s,color .2s,background .2s
 }
+.feature-tags .tag-chip:hover,.feature-tags .tag-chip:focus-visible{
+  border-color:rgba(94,234,212,.35);color:var(--cyan);outline:none
+}
+.tag-toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:200;
+  max-width:min(520px,92vw);padding:14px 20px;border-radius:14px;
+  font-size:14px;line-height:1.45;color:var(--text);
+  background:var(--card);border:1px solid var(--border);
+  box-shadow:0 12px 40px rgba(0,0,0,.25);transition:opacity .3s,transform .3s
+}
+.tag-toast[hidden]{display:none!important}
+html[data-theme="light"] .feature-tags .tag-chip{background:#f1f5f9;border-color:#e2e8f0;color:#475569}
+html[data-theme="light"] .feature-tags .tag-chip:hover{background:#ecfeff}
 
 /* ─── WORKFLOW ─── */
 .workflow{padding:100px 0}
@@ -220,6 +235,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:20px 0;
   font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--green);
   word-break:break-all;margin-bottom:12px;border:1px solid rgba(52,211,153,.1)
 }
+.merkle-hash.interactive{cursor:pointer;transition:background .2s,border-color .2s}
+.merkle-hash.interactive:hover{border-color:rgba(52,211,153,.35)}
 .verify-badge{
   display:inline-flex;align-items:center;gap:8px;padding:10px 16px;
   border-radius:12px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);
@@ -248,8 +265,62 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:20px 0;
 footer{padding:40px 0;border-top:1px solid var(--border);margin-top:40px}
 .footer-inner{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
 .footer-brand{display:flex;align-items:center;gap:10px;font-weight:700}
+a.footer-brand{display:flex;align-items:center;gap:10px;font-weight:700;color:inherit;text-decoration:none}
 .footer-brand svg{width:22px;height:22px}
 .footer-copy{font-size:13px;color:var(--dim)}
+a.footer-brand:hover{color:var(--cyan)}
+
+/* ─── LIGHT THEME (full surface coverage) ─── */
+html[data-theme="light"] nav{
+  background:rgba(248,250,252,.92);
+  border-bottom-color:rgba(15,23,42,.1);
+}
+html[data-theme="light"] .hero::before{opacity:.45}
+html[data-theme="light"] .hero-dashboard{
+  background:linear-gradient(145deg,#ffffff,var(--card));
+  border-color:rgba(94,234,212,.22);
+  box-shadow:0 8px 40px rgba(15,23,42,.08);
+}
+html[data-theme="light"] .dash-bar{background:rgba(241,245,249,.95);border-bottom-color:var(--border)}
+html[data-theme="light"] .dash-sensor{background:rgba(15,23,42,.03);border-color:rgba(15,23,42,.06)}
+html[data-theme="light"] .chart-area{background:rgba(15,23,42,.02);border-color:rgba(15,23,42,.06)}
+html[data-theme="light"] .incident-mini{background:rgba(15,23,42,.02);border-color:rgba(15,23,42,.06)}
+html[data-theme="light"] .pulse-inner{
+  background:rgba(255,255,255,.95);
+  border-color:var(--border);
+  box-shadow:0 2px 12px rgba(15,23,42,.06);
+}
+html[data-theme="light"] .feature-card{
+  background:linear-gradient(180deg,#fff 0%,#f8fafc 100%);
+  box-shadow:0 1px 3px rgba(15,23,42,.06);
+}
+html[data-theme="light"] .section-label{background:rgba(15,23,42,.04);border-color:var(--border)}
+html[data-theme="light"] .wf-step{background:rgba(255,255,255,.8);border-color:var(--border)}
+html[data-theme="light"] .workflow-aside{
+  background:linear-gradient(180deg,#fff,#f1f5f9);
+  border-color:var(--border);
+}
+html[data-theme="light"] .integrity-visual{
+  background:linear-gradient(160deg,rgba(52,211,153,.06),#f8fafc);
+  border-color:rgba(52,211,153,.25);
+}
+html[data-theme="light"] .merkle-hash{
+  background:rgba(241,245,249,.9);
+  border-color:rgba(52,211,153,.2);
+  color:#047857;
+}
+html[data-theme="light"] .cta-box{
+  background:linear-gradient(180deg,#fff,#f1f5f9);
+  border-color:var(--border);
+  box-shadow:0 4px 24px rgba(15,23,42,.06);
+}
+html[data-theme="light"] .btn-primary{color:#042f2e}
+html[data-theme="light"] .tag-toast{box-shadow:0 12px 40px rgba(15,23,42,.12)}
+.theme-btn{
+  font:inherit;font-size:13px;color:var(--muted);background:transparent;border:none;
+  cursor:pointer;padding:6px 0;text-decoration:underline;text-underline-offset:3px
+}
+.theme-btn:hover{color:var(--cyan)}
 
 /* ─── RESPONSIVE ─── */
 @media(max-width:1024px){
@@ -264,18 +335,20 @@ footer{padding:40px 0;border-top:1px solid var(--border);margin-top:40px}
   .incidents-row{grid-template-columns:1fr}
   .dash-body{grid-template-columns:1fr}
   .dash-sidebar{display:none}
-  .nav-links{display:none}
+  .nav-links{gap:14px;font-size:12px;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;max-width:100%;padding-bottom:2px}
+  .nav-inner{flex-wrap:wrap;gap:8px}
+  .nav-cta{flex-shrink:0}
   .cta-box{padding:36px 24px}
 }
 </style>
 </head>
-<body>
+<body id="top">
 
 <!-- ═══ NAV ═══ -->
-<nav>
+<nav aria-label="Primary">
   <div class="container nav-inner">
-    <a href="/" class="logo">
-      <svg viewBox="0 0 28 28" fill="none"><path d="M14 2L2 26L14 20L26 26L14 2Z" fill="#5eead4"/><path d="M14 2L14 20L2 26L14 2Z" fill="#2dd4bf"/></svg>
+    <a href="/#top" class="logo" title="Vigil home">
+      <svg viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M14 2L2 26L14 20L26 26L14 2Z" fill="#5eead4"/><path d="M14 2L14 20L2 26L14 2Z" fill="#2dd4bf"/></svg>
       Vigil
     </a>
     <div class="nav-links">
@@ -283,9 +356,9 @@ footer{padding:40px 0;border-top:1px solid var(--border);margin-top:40px}
       <a href="#workflow">Workflow</a>
       <a href="#integrity">Trust</a>
       <a href="/dashboard">Dashboard</a>
-      <a href="#" onclick="toggleLandingTheme();return false" style="opacity:.85">Theme</a>
+      <button type="button" class="theme-btn" id="landing-theme-toggle" onclick="toggleLandingTheme()" aria-label="Toggle color theme">Switch theme</button>
     </div>
-    <button class="nav-cta" onclick="window.location='/dashboard'">Open Dashboard</button>
+    <a class="nav-cta" href="/dashboard">Open Dashboard</a>
   </div>
 </nav>
 
@@ -411,7 +484,9 @@ footer{padding:40px 0;border-top:1px solid var(--border);margin-top:40px}
         <h3>Explainable Incidents</h3>
         <p>Every incident carries a rule-firing timeline, suspected cause, and confidence score. No black-box anomalies — only traceable reasoning grounded in real telemetry data.</p>
         <div class="feature-tags">
-          <span>temp_spike</span><span>vibration_anomaly</span><span>multi_machine_cascade</span>
+          <button type="button" class="tag-chip" onclick="showTagHint('temp_spike')">temp_spike</button>
+          <button type="button" class="tag-chip" onclick="showTagHint('vibration_anomaly')">vibration_anomaly</button>
+          <button type="button" class="tag-chip" onclick="showTagHint('multi_machine_cascade')">multi_machine_cascade</button>
         </div>
       </div>
       <div class="feature-card">
@@ -421,7 +496,11 @@ footer{padding:40px 0;border-top:1px solid var(--border);margin-top:40px}
         <h3>Actionable Recommendations</h3>
         <p>The system recommends next actions — acknowledge, assign maintenance, reroute, override, or resolve — and records the operator's decision in the same audit ledger.</p>
         <div class="feature-tags">
-          <span>acknowledge</span><span>assign</span><span>reroute</span><span>override</span><span>resolve</span>
+          <button type="button" class="tag-chip" onclick="showTagHint('acknowledge')">acknowledge</button>
+          <button type="button" class="tag-chip" onclick="showTagHint('assign')">assign</button>
+          <button type="button" class="tag-chip" onclick="showTagHint('reroute')">reroute</button>
+          <button type="button" class="tag-chip" onclick="showTagHint('override')">override</button>
+          <button type="button" class="tag-chip" onclick="showTagHint('resolve')">resolve</button>
         </div>
       </div>
       <div class="feature-card">
@@ -431,7 +510,9 @@ footer{padding:40px 0;border-top:1px solid var(--border);margin-top:40px}
         <h3>Merkle-Backed Audit Trails</h3>
         <p>Every decision is cryptographically sealed. Replay payloads include Merkle roots and proof arrays so any stakeholder can verify that data is untampered.</p>
         <div class="feature-tags">
-          <span>merkle_root</span><span>proof_array</span><span>verification</span>
+          <button type="button" class="tag-chip" onclick="showTagHint('merkle_root')">merkle_root</button>
+          <button type="button" class="tag-chip" onclick="showTagHint('proof_array')">proof_array</button>
+          <button type="button" class="tag-chip" onclick="showTagHint('verification')">verification</button>
         </div>
       </div>
       <div class="feature-card">
@@ -441,7 +522,9 @@ footer{padding:40px 0;border-top:1px solid var(--border);margin-top:40px}
         <h3>Local-First Storage</h3>
         <p>Sled for immutable telemetry chains, SQLite for operational state. No cloud dependencies, no network partitions breaking your incident loop.</p>
         <div class="feature-tags">
-          <span>sled</span><span>sqlite</span><span>offline-capable</span>
+          <button type="button" class="tag-chip" onclick="showTagHint('sled')">sled</button>
+          <button type="button" class="tag-chip" onclick="showTagHint('sqlite')">sqlite</button>
+          <button type="button" class="tag-chip" onclick="showTagHint('offline-capable')">offline-capable</button>
         </div>
       </div>
       <div class="feature-card">
@@ -451,7 +534,10 @@ footer{padding:40px 0;border-top:1px solid var(--border);margin-top:40px}
         <h3>Read-First Copilot</h3>
         <p>An incident copilot that summarizes, explains, and prepares handoff notes — without ever changing state. All answers are audit-logged into the replay trail.</p>
         <div class="feature-tags">
-          <span>summary</span><span>explain</span><span>handoff</span><span>bounded Q&A</span>
+          <button type="button" class="tag-chip" onclick="showTagHint('summary')">summary</button>
+          <button type="button" class="tag-chip" onclick="showTagHint('explain')">explain</button>
+          <button type="button" class="tag-chip" onclick="showTagHint('handoff')">handoff</button>
+          <button type="button" class="tag-chip" onclick="showTagHint('bounded QA')">bounded Q&A</button>
         </div>
       </div>
       <div class="feature-card">
@@ -461,7 +547,9 @@ footer{padding:40px 0;border-top:1px solid var(--border);margin-top:40px}
         <h3>Messy-Data Fluent</h3>
         <p>Built for real manufacturing: late arrivals, duplicates, out-of-order events, and conflicting operator notes. The system tolerates dirty input without collapsing into noise.</p>
         <div class="feature-tags">
-          <span>dedup</span><span>late-arrival</span><span>conflict-handling</span>
+          <button type="button" class="tag-chip" onclick="showTagHint('dedup')">dedup</button>
+          <button type="button" class="tag-chip" onclick="showTagHint('late-arrival')">late-arrival</button>
+          <button type="button" class="tag-chip" onclick="showTagHint('conflict-handling')">conflict-handling</button>
         </div>
       </div>
     </div>
@@ -568,9 +656,9 @@ footer{padding:40px 0;border-top:1px solid var(--border);margin-top:40px}
       <div class="integrity-visual">
         <div style="font-weight:700;font-size:14px;margin-bottom:4px;color:var(--green)">Replay Verification</div>
         <div style="font-size:12px;color:var(--muted);margin-bottom:20px;font-family:'JetBrains Mono',monospace">Incident: temp_spike · ontario-line1</div>
-        <div class="merkle-hash">merkle_root: 0x7a3f9c2e8b1d4f6a0e5c3b9d7f2a8e1c4b6d0f3a9e7c2b5d8f1a4e6c3b9d7f2a</div>
-        <div class="merkle-hash">proof[0]: 0x3b9d7f2a8e1c4b6d0f3a9e7c2b5d8f1a4e6c3b9d7f2a7a3f9c2e8b1d4f6a0e5c</div>
-        <div class="merkle-hash">proof[1]: 0x8e1c4b6d0f3a9e7c2b5d8f1a4e6c3b9d7f2a7a3f9c2e8b1d4f6a0e5c3b9d7f2a</div>
+        <div class="merkle-hash interactive" role="button" tabindex="0" title="Copy sample hash" onclick="copyMerkleDemo(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();copyMerkleDemo(this);}">merkle_root: 0x7a3f9c2e8b1d4f6a0e5c3b9d7f2a8e1c4b6d0f3a9e7c2b5d8f1a4e6c3b9d7f2a</div>
+        <div class="merkle-hash interactive" role="button" tabindex="0" title="Copy sample hash" onclick="copyMerkleDemo(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();copyMerkleDemo(this);}">proof[0]: 0x3b9d7f2a8e1c4b6d0f3a9e7c2b5d8f1a4e6c3b9d7f2a7a3f9c2e8b1d4f6a0e5c</div>
+        <div class="merkle-hash interactive" role="button" tabindex="0" title="Copy sample hash" onclick="copyMerkleDemo(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();copyMerkleDemo(this);}">proof[1]: 0x8e1c4b6d0f3a9e7c2b5d8f1a4e6c3b9d7f2a7a3f9c2e8b1d4f6a0e5c3b9d7f2a</div>
         <div style="margin-top:16px">
           <div class="verify-badge">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -580,8 +668,8 @@ footer{padding:40px 0;border-top:1px solid var(--border);margin-top:40px}
         <div style="margin-top:20px;padding:14px;border-radius:12px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.04)">
           <div style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:8px">RULES FIRED</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <span style="padding:4px 10px;border-radius:999px;background:rgba(94,234,212,.08);border:1px solid rgba(94,234,212,.15);font-size:11px;color:var(--cyan);font-family:'JetBrains Mono',monospace">temp_spike</span>
-            <span style="padding:4px 10px;border-radius:999px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.15);font-size:11px;color:var(--amber);font-family:'JetBrains Mono',monospace">multi_machine_cascade</span>
+            <button type="button" class="tag-chip" style="padding:4px 10px" onclick="showTagHint('temp_spike')">temp_spike</button>
+            <button type="button" class="tag-chip" style="padding:4px 10px" onclick="showTagHint('multi_machine_cascade')">multi_machine_cascade</button>
           </div>
         </div>
       </div>
@@ -597,7 +685,7 @@ footer{padding:40px 0;border-top:1px solid var(--border);margin-top:40px}
       <p>Vigil is local-first, replay-native, and built for manufacturing environments where trust matters. See it in action.</p>
       <div class="cta-actions">
         <a href="/dashboard" class="btn-primary">Open Dashboard</a>
-        <a href="https://github.com/AngelP17/ForgeMesh" class="btn-ghost">View on GitHub</a>
+        <a href="https://github.com/AngelP17/ForgeMesh" class="btn-ghost" target="_blank" rel="noopener noreferrer">View on GitHub</a>
       </div>
     </div>
   </div>
@@ -606,15 +694,86 @@ footer{padding:40px 0;border-top:1px solid var(--border);margin-top:40px}
 <!-- ═══ FOOTER ═══ -->
 <footer>
   <div class="container footer-inner">
-    <div class="footer-brand">
-      <svg viewBox="0 0 28 28" fill="none" width="22" height="22"><path d="M14 2L2 26L14 20L26 26L14 2Z" fill="#5eead4"/><path d="M14 2L14 20L2 26L14 2Z" fill="#2dd4bf"/></svg>
+    <a href="/#top" class="footer-brand" title="Back to top">
+      <svg viewBox="0 0 28 28" fill="none" width="22" height="22" aria-hidden="true"><path d="M14 2L2 26L14 20L26 26L14 2Z" fill="#5eead4"/><path d="M14 2L14 20L2 26L14 2Z" fill="#2dd4bf"/></svg>
       <span>Vigil</span>
-    </div>
+    </a>
     <div class="footer-copy">Operational Incident Intelligence · Local-first · Replay-native · Zero-cost core</div>
   </div>
 </footer>
 
+<div id="tag-toast" class="tag-toast" role="status" aria-live="polite" hidden></div>
+
 <script>
+const TAG_HINTS = {
+  temp_spike: 'Detection rule: temperature excursion beyond a rolling baseline window.',
+  vibration_anomaly: 'Detection rule: vibration RMS or peak exceeds a threshold band.',
+  multi_machine_cascade: 'Pattern: correlated incidents across multiple machines or lines.',
+  acknowledge: 'Operator action: record awareness without changing assignment.',
+  assign: 'Operator action: route maintenance or ownership to a team.',
+  reroute: 'Operator action: change workflow path or escalation path.',
+  override: 'Operator action: bypass a suggested step with logged justification.',
+  resolve: 'Operator action: close the incident with final disposition.',
+  merkle_root: 'Cryptographic summary hash binding the replay payload.',
+  proof_array: 'Sibling hashes proving inclusion of telemetry in the Merkle tree.',
+  verification: 'Step confirming chain integrity against stored roots (CLI/API).',
+  sled: 'Embedded KV used for immutable telemetry chains.',
+  sqlite: 'Relational store for incidents, sessions, and audit events.',
+  'offline-capable': 'Core loop runs without cloud connectivity.',
+  summary: 'Copilot mode: short incident narrative for shift handoff.',
+  explain: 'Copilot mode: why the rule fired and what evidence supports it.',
+  handoff: 'Copilot mode: notes for the next operator or team.',
+  'bounded QA': 'Copilot answers scoped to the incident context only.',
+  dedup: 'Ingestion step collapsing duplicate raw events.',
+  'late-arrival': 'Events accepted even when timestamps arrive out of order.',
+  'conflict-handling': 'Reconciling disagreeing operator notes or sources.',
+};
+
+function showTagHint(key) {
+  const el = document.getElementById('tag-toast');
+  if (!el) return;
+  el.textContent = TAG_HINTS[key] || ('Term: ' + key);
+  el.hidden = false;
+  clearTimeout(showTagHint._t);
+  showTagHint._t = setTimeout(function () { el.hidden = true; }, 5500);
+}
+
+function updateThemeToggleLabel() {
+  const t = document.documentElement.getAttribute('data-theme') || 'dark';
+  const btn = document.getElementById('landing-theme-toggle');
+  if (btn) {
+    btn.textContent = t === 'light' ? 'Dark mode' : 'Light mode';
+    btn.setAttribute('aria-pressed', t === 'light' ? 'true' : 'false');
+  }
+}
+
+function toggleLandingTheme() {
+  const d = document.documentElement;
+  const next = d.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+  d.setAttribute('data-theme', next);
+  localStorage.setItem('vigil_theme', next);
+  updateThemeToggleLabel();
+}
+
+(function initLandingTheme() {
+  const t = localStorage.getItem('vigil_theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+  updateThemeToggleLabel();
+})();
+
+function copyMerkleDemo(el) {
+  var t = el.textContent.trim();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t).catch(function () {});
+  }
+  var toast = document.getElementById('tag-toast');
+  if (!toast) return;
+  toast.textContent = 'Copied sample hash to clipboard (illustrative).';
+  toast.hidden = false;
+  clearTimeout(copyMerkleDemo._t);
+  copyMerkleDemo._t = setTimeout(function () { toast.hidden = true; }, 2800);
+}
+
 // Load health + extended status from API (pulse bar)
 async function loadHealthData() {
   try {
@@ -649,17 +808,6 @@ async function loadHealthData() {
     console.log('Health/status data not available yet');
   }
 }
-
-function toggleLandingTheme() {
-  const d = document.documentElement;
-  const next = d.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-  d.setAttribute('data-theme', next);
-  localStorage.setItem('vigil_theme', next);
-}
-(function () {
-  const t = localStorage.getItem('vigil_theme') || 'dark';
-  document.documentElement.setAttribute('data-theme', t);
-})();
 
 // Load health data on page load
 loadHealthData();

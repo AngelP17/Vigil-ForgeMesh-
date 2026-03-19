@@ -2,7 +2,11 @@
 
 **Operational Incident Intelligence Platform**
 
+![Vigil landing page (dark theme)](docs/landing-page.png)
+
 Evolved from ForgeMesh distributed industrial historian into a closed-loop decision system with explainable incidents, operator actions, and Merkle-DAG-backed replay.
+
+*Screenshot: local dev server — `cargo run -p vigil-cli -- daemon`. Alternate view: [`docs/landing-page-alt.png`](docs/landing-page-alt.png).*
 
 [![Rust](https://img.shields.io/badge/Rust-1.75+-orange.svg)](https://rust-lang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
