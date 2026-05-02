@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import 'geist/font/sans.css';
+@import 'geist/font/mono.css';
+
+@layer base {
+  :root {
+    --vigil-bg: #030712;
+    --vigil-bg2: #0b0f19;
+    --vigil-card: #111827;
+    --vigil-border: #1f2937;
+    --vigil-accent: #f59e0b;
+    --vigil-accent-glow: rgba(245, 158, 11, 0.35);
+    --vigil-green: #10b981;
+    --vigil-red: #ef4444;
+    --vigil-text: #f8fafc;
+    --vigil-muted: #94a3b8;
+    --vigil-dim: #475569;
+  }
+
+  html[data-theme="light"] {
+    --vigil-bg: #f8fafc;
+    --vigil-bg2: #f1f5f9;
+    --vigil-card: #ffffff;
+    --vigil-border: #e2e8f0;
+    --vigil-text: #0f172a;
+    --vigil-muted: #475569;
+    --vigil-dim: #64748b;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 96px;
+  }
+
+  body {
+    font-family: 'Geist', system-ui, sans-serif;
+    background: var(--vigil-bg);
+    color: var(--vigil-text);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    line-height: 1.6;
+  }
+
+  ::selection {
+    background: rgba(245, 158, 11, 0.25);
+    color: var(--vigil-text);
+  }
+}

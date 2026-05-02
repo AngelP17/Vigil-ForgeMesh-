@@ -8,6 +8,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use tower_http::services::{ServeDir, ServeFile};
 use serde_json::json;
 use sqlx::SqlitePool;
 use std::collections::HashSet;
@@ -37,6 +38,8 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/", get(landing_handler))
         .route("/dashboard", get(dashboard_handler))
         .route("/favicon.ico", get(favicon_handler))
+        .nest_service("/assets", ServeDir::new("crates/vigil-web/static/assets"))
+        .fallback_service(ServeFile::new("crates/vigil-web/static/index.html"))
         .route("/ws", get(websocket_handler))
         .route("/api/sensors", get(list_sensors))
         .route("/api/sensor/:id/history", get(get_history))
@@ -144,12 +147,15 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
     }
 }
 
-async fn landing_handler() -> Html<&'static str> {
-    Html(LANDING_HTML)
+async fn landing_handler() -> impl IntoResponse {
+    match tokio::fs::read_to_string("crates/vigil-web/static/index.html").await {
+        Ok(html) => Html(html).into_response(),
+        Err(_) => Html(include_str!("../static/index.html")).into_response(),
+    }
 }
 
-async fn dashboard_handler() -> Html<&'static str> {
-    Html(DASHBOARD_HTML)
+async fn dashboard_handler() -> impl IntoResponse {
+    landing_handler().await
 }
 
 async fn favicon_handler() -> StatusCode {
@@ -374,5 +380,4 @@ async fn download_sensor_car(
         .into_response()
 }
 
-const LANDING_HTML: &str = include_str!("../static/index.html");
-const DASHBOARD_HTML: &str = include_str!("../static/dashboard.html");
+// Static files are served from crates/vigil-web/static/ via ServeDir/ServeFile

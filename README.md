@@ -39,37 +39,58 @@ Vigil ingests noisy multi-source manufacturing data, detects explainable inciden
 
 - Three v1 incident patterns: `temp_spike`, `vibration_anomaly`, `multi_machine_cascade`
 - Three data sources: machine logs, maintenance tickets, operator notes
-- **Five** operator actions (not three): acknowledge, assign maintenance, reroute, override, resolve
-- Incidents list, incident detail, and replay/audit surfaces in the Axum dashboard; **Sensor trends** (Chart.js); **Mesh topology** from the live `vigil-p2p` gossip engine (`GET /api/mesh/topology`); **sensor CAR download** (`GET /api/export/:id/car`); PDF export for incidents (`/api/incidents/:id/export/pdf`)
+- **Five** operator actions: acknowledge, assign maintenance, reroute, override, resolve
+- **Elite React Frontend:** Vite + React + TypeScript + Tailwind CSS with GSAP motion, gapless bento grids, and amber-accented industrial design
+- **Operations Workbench:** Incident queue, live triage stream, detail view with replay, sensor trends (Chart.js), mesh topology, and Slack integration
+- **Merkle-Backed Replay:** Cryptographic verification with proof arrays and tamper-evident audit trails
 - Read-first incident copilot for summary, explanation, handoff, and bounded Q&A
 - Local demo seeding with nulls, duplicates, delays, out-of-order events, and conflicting notes
+- Zero recurring cost: self-hosted, no required SaaS or cloud subscriptions
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    PLC[Machine PLC Logs] --> Detect[Vigil Incident Loop]
-    Tickets[Maintenance Tickets] --> Detect
-    Notes[Operator Notes] --> Detect
-    Detect --> SQLite[(SQLite Incident Store)]
-    Detect --> Replay[Merkle Replay + Proof]
-    Detect --> UI[Axum Dashboard + WebSocket]
-    Sled[(Sled Merkle DAG)] --> Detect
+    subgraph Sources
+        PLC[Machine PLC Logs]
+        Tickets[Maintenance Tickets]
+        Notes[Operator Notes]
+    end
+
+    subgraph Vigil
+        Ingest[Ingest Layer]
+        Detect[Detection Engine]
+        SQLite[(SQLite Incident Store)]
+        Sled[(Sled Merkle DAG)]
+        Replay[Merkle Replay + Proof]
+        WS[WebSocket Bus]
+    end
+
+    subgraph Frontend
+        Landing[Vite React Landing]
+        Dashboard[Operations Workbench]
+        Charts[Chart.js Sensors]
+    end
+
+    PLC --> Ingest
+    Tickets --> Ingest
+    Notes --> Ingest
+    Ingest --> Detect
+    Detect --> SQLite
+    Detect --> Sled
+    Detect --> Replay
+    Detect --> WS
+    SQLite --> Dashboard
+    Sled --> Dashboard
+    Replay --> Dashboard
+    WS --> Dashboard
 ```
 
-Telemetry remains in the ForgeMesh substrate:
-
-- Sled-backed immutable telemetry chains
-- Merkle verification for tamper evidence
-- Axum + WebSocket dashboard
-- local-first CLI and demo workflow
-
-Vigil adds:
-
-- incident persistence and status transitions
-- operator action recording
-- decision audit log with reasoning snapshots
-- health endpoint and incident/replay APIs
+**Stack:**
+- **Backend:** Rust, Axum, SQLite, Sled, Merkle-DAG
+- **Frontend:** Vite, React, TypeScript, Tailwind CSS, Chart.js, GSAP
+- **Network:** WebSocket live updates, optional p2p gossip mesh
+- **Integrity:** SHA3-256 telemetry chains, Merkle proof verification
 
 ## Quick Start
 
@@ -177,16 +198,30 @@ It does not execute actions or change state. The implementation details and 30-d
 - scenario: [demo/demo_scenario.md](demo/demo_scenario.md)
 - screenshots directory: [demo/screenshots/README.md](demo/screenshots/README.md)
 - regenerate PNGs (requires a running daemon and [Playwright](https://playwright.dev/)):  
-  `cd demo/screenshots && npm install && npx playwright install chromium && node capture.mjs`  
+  `cd demo/screenshots && npm install && npx playwright install chromium && node capture-all.mjs`  
   (with `cargo run -p vigil-cli -- daemon --port 8080` in another terminal)
+
+### Frontend Development
+
+The React frontend lives in `apps/web/`:
+
+```bash
+cd apps/web
+npm install
+npm run dev      # Vite dev server
+npm run build    # Production build → dist/
+```
+
+Built assets are copied to `crates/vigil-web/static/` and served by Axum.
 
 ### Screenshots
 
+![Vigil Landing Page](docs/readme-vigil-landing.png)
 ![Incident list and dashboard](demo/screenshots/incident-list.png)
 ![Incident detail](demo/screenshots/incident-detail.png)
-![Replay and operator workflow](demo/screenshots/replay-view.png)
 ![Health card](demo/screenshots/health-card.png)
 ![Sensor trends (Chart.js)](demo/screenshots/sensor-trends.png)
+![Mesh topology](demo/screenshots/mesh-topology.png)
 
 ## Why Vigil Fits High-Stakes Ops Roles
 
